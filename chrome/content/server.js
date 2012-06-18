@@ -1,47 +1,21 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 et: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is MozJSHTTP code.
- *
- * The Initial Developer of the Original Code is
- * Jeff Walden <jwalden+code@mit.edu>.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Robert Sayre <sayrer@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Note that the server script itself already defines Cc, Ci, and Cr for us,
 // and because they're constants it's not safe to redefine them.  Scope leakage
 // sucks.
 
-const SERVER_PORT = 8888;
+// Disable automatic network detection, so tests work correctly when
+// not connected to a network.
+let (ios = Cc["@mozilla.org/network/io-service;1"]
+           .getService(Ci.nsIIOService2)) {
+  ios.manageOfflineStatus = false;
+  ios.offline = false;
+}
+
 var server; // for use in the shutdown handler, if necessary
 
 //
@@ -77,8 +51,8 @@ function makeTagFunc(tagName)
     // if attr is an object, write attributes
     if (attrs && typeof attrs == 'object') {
       startChildren = 1;
-      for (var key in attrs) {
-        var val = "" + attrs[key];
+      for (var [key,value] in attrs) {
+        var val = "" + value;
         response += " " + key + '="' + val.replace('"','&quot;') + '"';
       }
     }
@@ -106,6 +80,14 @@ function makeTags() {
   }
 }
 
+var _quitting = false;
+
+/** Quit when all activity has completed. */
+function serverStopped()
+{
+  _quitting = true;
+}
+
 // only run the "main" section if httpd.js was loaded ahead of us
 if (this["nsHttpServer"]) {
   //
@@ -113,10 +95,16 @@ if (this["nsHttpServer"]) {
   //
   runServer();
 
-  // We can only have gotten here if the /server/shutdown path was requested,
-  // and we can shut down the xpcshell now that all testing requests have been
-  // served.
-  quit(0);
+  // We can only have gotten here if the /server/shutdown path was requested.
+  if (_quitting)
+  {
+    dumpn("HTTP server stopped, all pending requests complete");
+    quit(0);
+  }
+
+  // Impossible as the stop callback should have been called, but to be safe...
+  dumpn("TEST-UNEXPECTED-FAIL | failure to correctly shut down HTTP server");
+  quit(1);
 }
 
 var serverBasePath;
@@ -126,32 +114,60 @@ var serverBasePath;
 //
 function runServer()
 {
-  serverBasePath = Cc["@mozilla.org/file/local;1"]
-                     .createInstance(Ci.nsILocalFile);
-  var procDir = Cc["@mozilla.org/file/directory_service;1"]
-                  .getService(Ci.nsIProperties).get("CurProcD", Ci.nsIFile);
-  serverBasePath.initWithPath(procDir.parent.parent.path);
-  serverBasePath.append("_tests");
-  serverBasePath.append("testing");
-  serverBasePath.append("mochitest");
-
+  serverBasePath = __LOCATION__.parent;
   server = createMochitestServer(serverBasePath);
-  server.start(SERVER_PORT);
+
+  //verify server address
+  //if a.b.c.d or 'localhost'
+  if (typeof(_SERVER_ADDR) != "undefined") {
+    if (_SERVER_ADDR == "localhost") {
+      gServerAddress = _SERVER_ADDR;      
+    } else {
+      var quads = _SERVER_ADDR.split('.');
+      if (quads.length == 4) {
+        var invalid = false;
+        for (var i=0; i < 4; i++) {
+          if (quads[i] < 0 || quads[i] > 255)
+            invalid = true;
+        }
+        if (!invalid)
+          gServerAddress = _SERVER_ADDR;
+        else
+          throw "invalid _SERVER_ADDR, please specify a valid IP Address";
+      }
+    }
+  } else {
+    throw "please defined _SERVER_ADDR (as an ip address) before running server.js";
+  }
+
+  if (typeof(_SERVER_PORT) != "undefined") {
+    if (parseInt(_SERVER_PORT) > 0 && parseInt(_SERVER_PORT) < 65536)
+      SERVER_PORT = _SERVER_PORT;
+  } else {
+    throw "please define _SERVER_PORT (as a port number) before running server.js";
+  }
+
+  server._start(SERVER_PORT, gServerAddress);
 
   // touch a file in the profile directory to indicate we're alive
   var foStream = Cc["@mozilla.org/network/file-output-stream;1"]
                    .createInstance(Ci.nsIFileOutputStream);
   var serverAlive = Cc["@mozilla.org/file/local;1"]
                       .createInstance(Ci.nsILocalFile);
-  serverAlive.initWithFile(serverBasePath);
-  serverAlive.append("mochitesttestingprofile");
+
+  if (typeof(_PROFILE_PATH) == "undefined") {
+    serverAlive.initWithFile(serverBasePath);
+    serverAlive.append("mochitesttestingprofile");
+  } else {
+    serverAlive.initWithPath(_PROFILE_PATH);
+  }
 
   // If we're running outside of the test harness, there might
   // not be a test profile directory present
   if (serverAlive.exists()) {
     serverAlive.append("server_alive.txt");
     foStream.init(serverAlive,
-                  0x02 | 0x08 | 0x20, 0664, 0); // write, create, truncate
+                  0x02 | 0x08 | 0x20, 436, 0); // write, create, truncate
     data = "It's alive!";
     foStream.write(data, data.length);
     foStream.close();
@@ -184,9 +200,33 @@ function createMochitestServer(serverBasePath)
 
   server.registerDirectory("/", serverBasePath);
   server.registerPathHandler("/server/shutdown", serverShutdown);
+  server.registerPathHandler("/server/debug", serverDebug);
   server.registerContentType("sjs", "sjs"); // .sjs == CGI-like functionality
   server.registerContentType("jar", "application/x-jar");
+  server.registerContentType("ogg", "application/ogg");
+  server.registerContentType("pdf", "application/pdf");
+  server.registerContentType("ogv", "video/ogg");
+  server.registerContentType("oga", "audio/ogg");
+  server.registerContentType("opus", "audio/ogg; codecs=opus");
+  server.registerContentType("dat", "text/plain; charset=utf-8");
+  server.registerContentType("frag", "text/plain"); // .frag == WebGL fragment shader
+  server.registerContentType("vert", "text/plain"); // .vert == WebGL vertex shader
   server.setIndexHandler(defaultDirHandler);
+
+  var serverRoot =
+    {
+      getFile: function getFile(path)
+      {
+        var file = serverBasePath.clone().QueryInterface(Ci.nsILocalFile);
+        path.split("/").forEach(function(p) {
+          file.appendRelativePath(p);
+        });
+        return file;
+      },
+      QueryInterface: function(aIID) { return this; }
+    };
+
+  server.setObjectState("SERVER_ROOT", serverRoot);
 
   processLocations(server);
 
@@ -204,7 +244,7 @@ function processLocations(server)
   serverLocations.append("server-locations.txt");
 
   const PR_RDONLY = 0x01;
-  var fis = new FileInputStream(serverLocations, PR_RDONLY, 0444,
+  var fis = new FileInputStream(serverLocations, PR_RDONLY, 292 /* 0444 */,
                                 Ci.nsIFileInputStream.CLOSE_ON_EOF);
 
   var lis = new ConverterInputStream(fis, "UTF-8", 1024, 0x0);
@@ -276,8 +316,41 @@ function serverShutdown(metadata, response)
   var body = "Server shut down.";
   response.bodyOutputStream.write(body, body.length);
 
-  // Note: this doesn't disrupt the current request.
-  server.stop();
+  dumpn("Server shutting down now...");
+  server.stop(serverStopped);
+}
+
+// /server/debug?[012]
+function serverDebug(metadata, response)
+{
+  response.setStatusLine(metadata.httpVersion, 400, "Bad debugging level");
+  if (metadata.queryString.length !== 1)
+    return;
+
+  var mode;
+  if (metadata.queryString === "0") {
+    // do this now so it gets logged with the old mode
+    dumpn("Server debug logs disabled.");
+    DEBUG = false;
+    DEBUG_TIMESTAMP = false;
+    mode = "disabled";
+  } else if (metadata.queryString === "1") {
+    DEBUG = true;
+    DEBUG_TIMESTAMP = false;
+    mode = "enabled";
+  } else if (metadata.queryString === "2") {
+    DEBUG = true;
+    DEBUG_TIMESTAMP = true;
+    mode = "enabled, with timestamps";
+  } else {
+    return;
+  }
+
+  response.setStatusLine(metadata.httpVersion, 200, "OK");
+  response.setHeader("Content-type", "text/plain", false);
+  var body = "Server debug logs " + mode + ".";
+  response.bodyOutputStream.write(body, body.length);
+  dumpn(body);
 }
 
 //
@@ -357,7 +430,12 @@ function isTest(filename, pattern)
   if (pattern)
     return pattern.test(filename);
 
-  return filename.indexOf("test_") > -1 &&
+  // File name is a URL style path to a test file, make sure that we check for
+  // tests that start with test_.
+  testPattern = /^test_/;
+  pathPieces = filename.split('/');
+    
+  return testPattern.test(pathPieces[pathPieces.length - 1]) &&
          filename.indexOf(".js") == -1 &&
          filename.indexOf(".css") == -1 &&
          !/\^headers\^$/.test(filename);
@@ -370,8 +448,7 @@ function linksToListItems(links)
 {
   var response = "";
   var children = "";
-  for (var link in links) {
-    var value = links[link];
+  for (var [link, value] in links) {
     var classVal = (!isTest(link) && !(value instanceof Object))
       ? "non-test invisible"
       : "test";
@@ -401,29 +478,52 @@ function linksToListItems(links)
 /**
  * Transform nested hashtables of paths to a flat table rows.
  */
-function linksToTableRows(links)
+function linksToTableRows(links, recursionLevel)
 {
   var response = "";
-  for (var link in links) {
-    var value = links[link];
+  for (var [link, value] in links) {
     var classVal = (!isTest(link) && !(value instanceof Object))
       ? "non-test invisible"
       : "";
+
+    spacer = "padding-left: " + (10 * recursionLevel) + "px";
+
     if (value instanceof Object) {
       response += TR({class: "dir", id: "tr-" + link },
-                     TD({colspan: "3"},"&#160;"));
-      response += linksToTableRows(value);
+                     TD({colspan: "3"}, "&#160;"),
+                     TD({style: spacer},
+                        A({href: link}, link)));
+      response += linksToTableRows(value, recursionLevel + 1);
     } else {
-      response += TR({class: classVal, id: "tr-" + link},
-                     TD("0"), TD("0"), TD("0"));
+      var bug_title = link.match(/test_bug\S+/);
+      var bug_num = null;
+      if (bug_title != null) {
+          bug_num = bug_title[0].match(/\d+/);
+      }
+      if ((bug_title == null) || (bug_num == null)) {
+        response += TR({class: classVal, id: "tr-" + link },
+                       TD("0"),
+                       TD("0"),
+                       TD("0"),
+                       TD({style: spacer},
+                          A({href: link}, link)));
+      } else {
+        var bug_url = "https://bugzilla.mozilla.org/show_bug.cgi?id=" + bug_num;
+        response += TR({class: classVal, id: "tr-" + link },
+                       TD("0"),
+                       TD("0"),
+                       TD("0"),
+                       TD({style: spacer},
+                          A({href: link}, link), " - ",
+                          A({href: bug_url}, "Bug " + bug_num)));
+      }
     }
   }
   return response;
 }
 
 function arrayOfTestFiles(linkArray, fileArray, testPattern) {
-  for (var link in linkArray) {
-    var value = linkArray[link];
+  for (var [link, value] in Iterator(linkArray)) {
     if (value instanceof Object) {
       arrayOfTestFiles(value, fileArray, testPattern);
     } else if (isTest(link, testPattern)) {
@@ -473,6 +573,8 @@ function testListing(metadata, response)
   var [links, count] = list(metadata.path,
                             metadata.getProperty("directory"),
                             true);
+  var table_class = metadata.queryString.indexOf("hideResultsTable=1") > -1 ? "invisible": "";
+
   dumpn("count: " + count);
   var tests = jsonArrayOfTestFiles(links);
   response.write(
@@ -482,17 +584,16 @@ function testListing(metadata, response)
         LINK({rel: "stylesheet",
               type: "text/css", href: "/static/harness.css"}
         ),
-        SCRIPT({type: "text/javascript", src: "/MochiKit/packed.js"}),
+        SCRIPT({type: "text/javascript",
+                 src: "/tests/SimpleTest/LogController.js"}),
         SCRIPT({type: "text/javascript",
                  src: "/tests/SimpleTest/TestRunner.js"}),
         SCRIPT({type: "text/javascript",
-                 src: "/tests/SimpleTest/MozillaFileLogger.js"}),
-        SCRIPT({type: "text/javascript",
-                 src: "/tests/SimpleTest/quit.js"}),
+                 src: "/tests/SimpleTest/MozillaLogger.js"}),
         SCRIPT({type: "text/javascript",
                  src: "/tests/SimpleTest/setup.js"}),
         SCRIPT({type: "text/javascript"},
-               "connect(window, 'onload', hookup); gTestList=" + tests + ";"
+               "window.onload =  hookup; gTestList=" + tests + ";"
         )
       ),
       BODY(
@@ -527,17 +628,15 @@ function testListing(metadata, response)
             BR()
           ),
     
-          TABLE({cellpadding: 0, cellspacing: 0, id: "test-table"},
-            TR(TD("Passed"), TD("Failed"), TD("Todo"), 
-                TD({rowspan: count+1},
-                   UL({class: "top"},
-                      LI(B("Test Files")),        
-                      linksToListItems(links)
-                      )
-                )
-            ),
-            linksToTableRows(links)
+          TABLE({cellpadding: 0, cellspacing: 0, class: table_class, id: "test-table"},
+            TR(TD("Passed"), TD("Failed"), TD("Todo"), TD("Test Files")),
+            linksToTableRows(links, 0)
           ),
+
+          BR(),
+          TABLE({cellpadding: 0, cellspacing: 0, border: 1, bordercolor: "red", id: "fail-table"}
+          ),
+
           DIV({class: "clear"})
         )
       )

@@ -1,91 +1,31 @@
+/***
 
-MochiKit.Base.update(MochiKit.DOM, {
-    /** @id MochiKit.DOM.makeClipping */
-    makeClipping: function (element) {
-        element = MochiKit.DOM.getElement(element);
-        var oldOverflow = element.style.overflow;
-        if ((MochiKit.Style.getStyle(element, 'overflow') || 'visible') != 'hidden') {
-            element.style.overflow = 'hidden';
-        }
-        return oldOverflow;
-    },
+MochiKit.Position 1.4.2
 
-    /** @id MochiKit.DOM.undoClipping */
-    undoClipping: function (element, overflow) {
-        element = MochiKit.DOM.getElement(element);
-        if (!overflow) {
-            return;
-        }
-        element.style.overflow = overflow;
-    },
+See <http://mochikit.com/> for documentation, downloads, license, etc.
 
-    /** @id MochiKit.DOM.makePositioned */
-    makePositioned: function (element) {
-        element = MochiKit.DOM.getElement(element);
-        var pos = MochiKit.Style.getStyle(element, 'position');
-        if (pos == 'static' || !pos) {
-            element.style.position = 'relative';
-            // Opera returns the offset relative to the positioning context,
-            // when an element is position relative but top and left have
-            // not been defined
-            if (/Opera/.test(navigator.userAgent)) {
-                element.style.top = 0;
-                element.style.left = 0;
-            }
-        }
-    },
+(c) 2005-2006 Bob Ippolito and others.  All rights Reserved.
 
-    /** @id MochiKit.DOM.undoPositioned */
-    undoPositioned: function (element) {
-        element = MochiKit.DOM.getElement(element);
-        if (element.style.position == 'relative') {
-            element.style.position = element.style.top = element.style.left = element.style.bottom = element.style.right = '';
-        }
-    },
+***/
 
-    /** @id MochiKit.DOM.getFirstElementByTagAndClassName */
-    getFirstElementByTagAndClassName: function (tagName, className,
-            /* optional */parent) {
-        var self = MochiKit.DOM;
-        if (typeof(tagName) == 'undefined' || tagName === null) {
-            tagName = '*';
-        }
-        if (typeof(parent) == 'undefined' || parent === null) {
-            parent = self._document;
-        }
-        parent = self.getElement(parent);
-        var children = (parent.getElementsByTagName(tagName)
-            || self._document.all);
-        if (typeof(className) == 'undefined' || className === null) {
-            return children[0];
-        }
+MochiKit.Base._deps('Position', ['Base', 'DOM', 'Style']);
 
-        for (var i = 0; i < children.length; i++) {
-            var child = children[i];
-            var classNames = child.className.split(' ');
-            for (var j = 0; j < classNames.length; j++) {
-                if (classNames[j] == className) {
-                    return child;
-                }
-            }
-        }
-    },
+MochiKit.Position.NAME = 'MochiKit.Position';
+MochiKit.Position.VERSION = '1.4.2';
+MochiKit.Position.__repr__ = function () {
+    return '[' + this.NAME + ' ' + this.VERSION + ']';
+};
+MochiKit.Position.toString = function () {
+    return this.__repr__();
+};
 
-    /** @id MochiKit.DOM.isParent */
-    isParent: function (child, element) {
-        if (!child.parentNode || child == element) {
-            return false;
-        }
+MochiKit.Position.EXPORT_OK = [];
 
-        if (child.parentNode == element) {
-            return true;
-        }
+MochiKit.Position.EXPORT = [
+];
 
-        return MochiKit.DOM.isParent(child.parentNode, element);
-    }
-});
 
-MochiKit.Position = {
+MochiKit.Base.update(MochiKit.Position, {
     // set to true if needed, warning: firefox performance problems
     // NOT neeeded for page scrolling, only if draggable contained in
     // scrollable elements
@@ -279,5 +219,18 @@ MochiKit.Position = {
 
         return new MochiKit.Style.Coordinates(valueL, valueT);
     }
+});
+
+MochiKit.Position.__new__ = function (win) {
+    var m = MochiKit.Base;
+    this.EXPORT_TAGS = {
+        ':common': this.EXPORT,
+        ':all': m.concat(this.EXPORT, this.EXPORT_OK)
+    };
+
+    m.nameFunctions(this);
 };
 
+MochiKit.Position.__new__(this);
+
+MochiKit.Base._exportSymbols(this, MochiKit.Position); 

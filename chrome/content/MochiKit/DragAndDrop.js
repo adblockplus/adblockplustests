@@ -1,5 +1,5 @@
 /***
-MochiKit.DragAndDrop 1.4
+MochiKit.DragAndDrop 1.4.2
 
 See <http://mochikit.com/> for documentation, downloads, license, etc.
 
@@ -8,41 +8,10 @@ Copyright (c) 2005 Thomas Fuchs (http://script.aculo.us, http://mir.aculo.us)
 
 ***/
 
-if (typeof(dojo) != 'undefined') {
-    dojo.provide('MochiKit.DragAndDrop');
-    dojo.require('MochiKit.Base');
-    dojo.require('MochiKit.DOM');
-    dojo.require('MochiKit.Iter');
-    dojo.require('MochiKit.Visual');
-    dojo.require('MochiKit.Signal');
-}
-
-if (typeof(JSAN) != 'undefined') {
-    JSAN.use("MochiKit.Base", []);
-    JSAN.use("MochiKit.DOM", []);
-    JSAN.use("MochiKit.Visual", []);
-    JSAN.use("MochiKit.Iter", []);
-    JSAN.use("MochiKit.Signal", []);
-}
-
-try {
-    if (typeof(MochiKit.Base) == 'undefined' ||
-        typeof(MochiKit.DOM) == 'undefined' ||
-        typeof(MochiKit.Visual) == 'undefined' ||
-        typeof(MochiKit.Signal) == 'undefined' ||
-        typeof(MochiKit.Iter) == 'undefined') {
-        throw "";
-    }
-} catch (e) {
-    throw "MochiKit.DragAndDrop depends on MochiKit.Base, MochiKit.DOM, MochiKit.Visual, MochiKit.Signal and MochiKit.Iter!";
-}
-
-if (typeof(MochiKit.DragAndDrop) == 'undefined') {
-    MochiKit.DragAndDrop = {};
-}
+MochiKit.Base._deps('DragAndDrop', ['Base', 'Iter', 'DOM', 'Signal', 'Visual', 'Position']);
 
 MochiKit.DragAndDrop.NAME = 'MochiKit.DragAndDrop';
-MochiKit.DragAndDrop.VERSION = '1.4';
+MochiKit.DragAndDrop.VERSION = '1.4.2';
 
 MochiKit.DragAndDrop.__repr__ = function () {
     return '[' + this.NAME + ' ' + this.VERSION + ']';
@@ -72,7 +41,7 @@ MochiKit.DragAndDrop.Droppables = {
 
     remove: function (element) {
         this.drops = MochiKit.Base.filter(function (d) {
-            return d.element != MochiKit.DOM.getElement(element)
+            return d.element != MochiKit.DOM.getElement(element);
         }, this.drops);
     },
 
@@ -102,7 +71,7 @@ MochiKit.DragAndDrop.Droppables = {
         deepest = drops[0];
 
         for (i = 1; i < drops.length; ++i) {
-            if (MochiKit.DOM.isParent(drops[i].element, deepest.element)) {
+            if (MochiKit.DOM.isChildNode(drops[i].element, deepest.element)) {
                 deepest = drops[i];
             }
         }
@@ -160,6 +129,10 @@ MochiKit.DragAndDrop.Droppables = {
 
 /** @id MochiKit.DragAndDrop.Droppable */
 MochiKit.DragAndDrop.Droppable = function (element, options) {
+    var cls = arguments.callee;
+    if (!(this instanceof cls)) {
+        return new cls(element, options);
+    }
     this.__init__(element, options);
 };
 
@@ -181,8 +154,8 @@ MochiKit.DragAndDrop.Droppable.prototype = {
         var b = MochiKit.Base;
         this.element = d.getElement(element);
         this.options = b.update({
-            
-            /** @id MochiKit.DragAndDrop.greedy */            
+
+            /** @id MochiKit.DragAndDrop.greedy */
             greedy: true,
 
             /** @id MochiKit.DragAndDrop.hoverclass */
@@ -212,7 +185,7 @@ MochiKit.DragAndDrop.Droppable.prototype = {
             /** @id MochiKit.DragAndDrop.containment */
             containment: [],
             tree: false
-        }, options || {});
+        }, options);
 
         // cache containers
         this.options._containers = [];
@@ -220,7 +193,7 @@ MochiKit.DragAndDrop.Droppable.prototype = {
             this.options._containers.push(d.getElement(c));
         }, this), this.options.containment);
 
-        d.makePositioned(this.element); // fix IE
+        MochiKit.Style.makePositioned(this.element); // fix IE
 
         MochiKit.DragAndDrop.Droppables.register(this);
     },
@@ -329,7 +302,7 @@ MochiKit.DragAndDrop.Draggables = {
             return d != draggable;
         }, this.drags);
         if (this.drags.length === 0) {
-            var disc = MochiKit.Signal.disconnect
+            var disc = MochiKit.Signal.disconnect;
             disc(this.eventMouseUp);
             disc(this.eventMouseMove);
             disc(this.eventKeypress);
@@ -384,6 +357,10 @@ MochiKit.DragAndDrop.Draggables = {
 
 /** @id MochiKit.DragAndDrop.Draggable */
 MochiKit.DragAndDrop.Draggable = function (element, options) {
+    var cls = arguments.callee;
+    if (!(this instanceof cls)) {
+        return new cls(element, options);
+    }
     this.__init__(element, options);
 };
 
@@ -402,23 +379,23 @@ MochiKit.DragAndDrop.Draggable.prototype = {
         var b = MochiKit.Base;
         options = b.update({
 
-            /** @id MochiKit.DragAndDrop.handle */            
+            /** @id MochiKit.DragAndDrop.handle */
             handle: false,
-            
-            /** @id MochiKit.DragAndDrop.starteffect */            
+
+            /** @id MochiKit.DragAndDrop.starteffect */
             starteffect: function (innerelement) {
-                this._savedOpacity = MochiKit.Style.getOpacity(innerelement) || 1.0;
+                this._savedOpacity = MochiKit.Style.getStyle(innerelement, 'opacity') || 1.0;
                 new v.Opacity(innerelement, {duration:0.2, from:this._savedOpacity, to:0.7});
             },
-            /** @id MochiKit.DragAndDrop.reverteffect */            
+            /** @id MochiKit.DragAndDrop.reverteffect */
             reverteffect: function (innerelement, top_offset, left_offset) {
                 var dur = Math.sqrt(Math.abs(top_offset^2) +
                           Math.abs(left_offset^2))*0.02;
                 return new v.Move(innerelement,
                             {x: -left_offset, y: -top_offset, duration: dur});
             },
-            
-            /** @id MochiKit.DragAndDrop.endeffect */            
+
+            /** @id MochiKit.DragAndDrop.endeffect */
             endeffect: function (innerelement) {
                 new v.Opacity(innerelement, {duration:0.2, from:0.7, to:this._savedOpacity});
             },
@@ -444,7 +421,7 @@ MochiKit.DragAndDrop.Draggable.prototype = {
 
             /** @id MochiKit.DragAndDrop.snap */
             snap: false
-        }, options || {});
+        }, options);
 
         var d = MochiKit.DOM;
         this.element = d.getElement(element);
@@ -465,7 +442,7 @@ MochiKit.DragAndDrop.Draggable.prototype = {
             this._isScrollChild = MochiKit.DOM.isChildNode(this.element, options.scroll);
         }
 
-        d.makePositioned(this.element);  // fix IE
+        MochiKit.Style.makePositioned(this.element);  // fix IE
 
         this.delta = this.currentDelta();
         this.options = options;
@@ -511,7 +488,7 @@ MochiKit.DragAndDrop.Draggable.prototype = {
 
         var pointer = event.mouse();
         var pos = MochiKit.Position.cumulativeOffset(this.element);
-        this.offset = [pointer.page.x - pos.x, pointer.page.y - pos.y]
+        this.offset = [pointer.page.x - pos.x, pointer.page.y - pos.y];
 
         MochiKit.DragAndDrop.Draggables.activate(this);
         event.stop();
@@ -597,7 +574,7 @@ MochiKit.DragAndDrop.Draggable.prototype = {
         }
 
         // fix AppleWebKit rendering
-        if (/AppleWebKit'/.test(navigator.appVersion)) {
+        if (/AppleWebKit/.test(navigator.appVersion)) {
             window.scrollBy(0, 0);
         }
         event.stop();
@@ -673,11 +650,6 @@ MochiKit.DragAndDrop.Draggable.prototype = {
     /** @id MochiKit.DragAndDrop.draw */
     draw: function (point) {
         var pos = MochiKit.Position.cumulativeOffset(this.element);
-        if (this.options.ghosting) { 
-            var r = MochiKit.Position.realOffset(this.element); 
-            pos.x += r.x - MochiKit.Position.windowOffset.x;
-            pos.y += r.y - MochiKit.Position.windowOffset.y; 
-        } 
         var d = this.currentDelta();
         pos.x -= d[0];
         pos.y -= d[1];
@@ -688,7 +660,7 @@ MochiKit.DragAndDrop.Draggable.prototype = {
         }
 
         var p = [point.page.x - pos.x - this.offset[0],
-                 point.page.y - pos.y - this.offset[1]]
+                 point.page.y - pos.y - this.offset[1]];
 
         if (this.options.snap) {
             if (typeof(this.options.snap) == 'function') {
@@ -699,13 +671,13 @@ MochiKit.DragAndDrop.Draggable.prototype = {
                     p = MochiKit.Base.map(MochiKit.Base.bind(function (v) {
                             i += 1;
                             return Math.round(v/this.options.snap[i]) *
-                                   this.options.snap[i]
-                        }, this), p)
+                                   this.options.snap[i];
+                        }, this), p);
                 } else {
                     p = MochiKit.Base.map(MochiKit.Base.bind(function (v) {
                         return Math.round(v/this.options.snap) *
-                               this.options.snap
-                        }, this), p)
+                               this.options.snap;
+                        }, this), p);
                 }
             }
         }
@@ -752,9 +724,9 @@ MochiKit.DragAndDrop.Draggable.prototype = {
         if (this.options.scroll == window) {
             var s = this._getWindowScroll(this.options.scroll);
             if (this.scrollSpeed[0] || this.scrollSpeed[1]) {
-                var d = delta / 1000;
-                this.options.scroll.scrollTo(s.left + d * this.scrollSpeed[0],
-                                             s.top + d * this.scrollSpeed[1]);
+                var dm = delta / 1000;
+                this.options.scroll.scrollTo(s.left + dm * this.scrollSpeed[0],
+                                             s.top + dm * this.scrollSpeed[1]);
             }
         } else {
             this.options.scroll.scrollLeft += this.scrollSpeed[0] * delta / 1000;
@@ -782,22 +754,22 @@ MochiKit.DragAndDrop.Draggable.prototype = {
         this.options.onchange(this);
     },
 
-    _getWindowScroll: function (w) {
+    _getWindowScroll: function (win) {
         var vp, w, h;
-        MochiKit.DOM.withWindow(w, function () {
-            vp = MochiKit.Style.getViewportPosition(w.document);
+        MochiKit.DOM.withWindow(win, function () {
+            vp = MochiKit.Style.getViewportPosition(win.document);
         });
-        if (w.innerWidth) {
-            w = w.innerWidth;
-            h = w.innerHeight;
-        } else if (w.document.documentElement && w.document.documentElement.clientWidth) {
-            w = w.document.documentElement.clientWidth;
-            h = w.document.documentElement.clientHeight;
+        if (win.innerWidth) {
+            w = win.innerWidth;
+            h = win.innerHeight;
+        } else if (win.document.documentElement && win.document.documentElement.clientWidth) {
+            w = win.document.documentElement.clientWidth;
+            h = win.document.documentElement.clientHeight;
         } else {
-            w = w.document.body.offsetWidth;
-            h = w.document.body.offsetHeight
+            w = win.document.body.offsetWidth;
+            h = win.document.body.offsetHeight;
         }
-        return {top: vp.x, left: vp.y, width: w, height: h};
+        return {top: vp.y, left: vp.x, width: w, height: h};
     },
 
     /** @id MochiKit.DragAndDrop.repr */

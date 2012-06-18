@@ -1,6 +1,6 @@
 /***
 
-MochiKit.LoggingPane 1.4
+MochiKit.LoggingPane 1.4.2
 
 See <http://mochikit.com/> for documentation, downloads, license, etc.
 
@@ -8,31 +8,10 @@ See <http://mochikit.com/> for documentation, downloads, license, etc.
 
 ***/
 
-if (typeof(dojo) != 'undefined') {
-    dojo.provide('MochiKit.LoggingPane');
-    dojo.require('MochiKit.Logging');
-    dojo.require('MochiKit.Base');
-}
-
-if (typeof(JSAN) != 'undefined') {
-    JSAN.use("MochiKit.Logging", []);
-    JSAN.use("MochiKit.Base", []);
-}
-
-try {
-    if (typeof(MochiKit.Base) == 'undefined' || typeof(MochiKit.Logging) == 'undefined') {
-        throw "";
-    }
-} catch (e) {
-    throw "MochiKit.LoggingPane depends on MochiKit.Base and MochiKit.Logging!";
-}
-
-if (typeof(MochiKit.LoggingPane) == 'undefined') {
-    MochiKit.LoggingPane = {};
-}
+MochiKit.Base._deps('LoggingPane', ['Base', 'Logging']);
 
 MochiKit.LoggingPane.NAME = "MochiKit.LoggingPane";
-MochiKit.LoggingPane.VERSION = "1.4";
+MochiKit.LoggingPane.VERSION = "1.4.2";
 MochiKit.LoggingPane.__repr__ = function () {
     return "[" + this.NAME + " " + this.VERSION + "]";
 };
@@ -57,7 +36,7 @@ MochiKit.LoggingPane.createLoggingPane = function (inline/* = false */) {
 
 /** @id MochiKit.LoggingPane.LoggingPane */
 MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = MochiKit.Logging.logger */) {
-        
+
     /* Use a div if inline, pop up a window if not */
     /* Create the elements */
     if (typeof(logger) == "undefined" || logger === null) {
@@ -75,7 +54,7 @@ MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = Moc
     }
     if (!inline) {
         // name the popup with the base URL for uniqueness
-        var url = win.location.href.split("?")[0].replace(/[#:\/.><&-]/g, "_");
+        var url = win.location.href.split("?")[0].replace(/[#:\/.><&%-]/g, "_");
         var name = uid + "_" + url;
         var nwin = win.open("", name, "dependent,resizable,height=200");
         if (!nwin) {
@@ -94,7 +73,7 @@ MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = Moc
     }
     var doc = win.document;
     this.doc = doc;
-    
+
     // Connect to the debug pane if it already exists (i.e. in a window orphaned by the page being refreshed)
     var debugPane = doc.getElementById(uid);
     var existing_pane = !!debugPane;
@@ -103,7 +82,7 @@ MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = Moc
         debugPane.loggingPane.buildAndApplyFilter();
         return debugPane.loggingPane;
     }
-    
+
     if (existing_pane) {
         // clear any existing contents
         var child;
@@ -212,14 +191,16 @@ MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = Moc
             MochiKit.LoggingPane._loggingPane = null;
         }
         this.logger.removeListener(listenerId);
-
-        debugPane.loggingPane = null;
-
-        if (inline) {
-            debugPane.parentNode.removeChild(debugPane);
-        } else {
-            this.win.close();
-        }
+        try {
+            try {
+              debugPane.loggingPane = null;
+            } catch(e) { logFatal("Bookmarklet was closed incorrectly."); }
+            if (inline) {
+                debugPane.parentNode.removeChild(debugPane);
+            } else {
+                this.win.close();
+            }
+        } catch(e) {}
     }, this);
 
     /** @id MochiKit.LoggingPane.filterMessages */
@@ -331,6 +312,7 @@ MochiKit.LoggingPane.LoggingPane = function (inline/* = false */, logger/* = Moc
     this.closePane = closePane;
     this.closed = false;
 
+
     return this;
 };
 
@@ -359,11 +341,11 @@ MochiKit.LoggingPane.__new__ = function () {
         ":common": this.EXPORT,
         ":all": MochiKit.Base.concat(this.EXPORT, this.EXPORT_OK)
     };
-    
+
     MochiKit.Base.nameFunctions(this);
 
     MochiKit.LoggingPane._loggingPane = null;
-  
+
 };
 
 MochiKit.LoggingPane.__new__();

@@ -1,6 +1,6 @@
 /***
 
-MochiKit.DOM 1.4
+MochiKit.DOM 1.4.2
 
 See <http://mochikit.com/> for documentation, downloads, license, etc.
 
@@ -8,28 +8,10 @@ See <http://mochikit.com/> for documentation, downloads, license, etc.
 
 ***/
 
-if (typeof(dojo) != 'undefined') {
-    dojo.provide("MochiKit.DOM");
-    dojo.require("MochiKit.Base");
-}
-if (typeof(JSAN) != 'undefined') {
-    JSAN.use("MochiKit.Base", []);
-}
-
-try {
-    if (typeof(MochiKit.Base) == 'undefined') {
-        throw "";
-    }
-} catch (e) {
-    throw "MochiKit.DOM depends on MochiKit.Base!";
-}
-
-if (typeof(MochiKit.DOM) == 'undefined') {
-    MochiKit.DOM = {};
-}
+MochiKit.Base._deps('DOM', ['Base']);
 
 MochiKit.DOM.NAME = "MochiKit.DOM";
-MochiKit.DOM.VERSION = "1.4";
+MochiKit.DOM.VERSION = "1.4.2";
 MochiKit.DOM.__repr__ = function () {
     return "[" + this.NAME + " " + this.VERSION + "]";
 };
@@ -50,9 +32,12 @@ MochiKit.DOM.EXPORT = [
     "createDOMFunc",
     "isChildNode",
     "getNodeAttribute",
+    "removeNodeAttribute",
     "setNodeAttribute",
     "updateNodeAttributes",
     "appendChildNodes",
+    "insertSiblingNodesAfter",
+    "insertSiblingNodesBefore",
     "replaceChildNodes",
     "removeElement",
     "swapDOM",
@@ -62,6 +47,9 @@ MochiKit.DOM.EXPORT = [
     "H1",
     "H2",
     "H3",
+    "H4",
+    "H5",
+    "H6",
     "BR",
     "CANVAS",
     "HR",
@@ -78,6 +66,9 @@ MochiKit.DOM.EXPORT = [
     "UL",
     "OL",
     "LI",
+    "DL",
+    "DT",
+    "DD",
     "TD",
     "TR",
     "THEAD",
@@ -102,10 +93,13 @@ MochiKit.DOM.EXPORT = [
     "removeElementClass",
     "swapElementClass",
     "hasElementClass",
+    "computedStyle", // deprecated in 1.4
     "escapeHTML",
     "toHTML",
     "emitHTML",
-    "scrapeText"
+    "scrapeText",
+    "getFirstParentByTagAndClassName",
+    "getFirstElementByTagAndClassName"
 ];
 
 MochiKit.DOM.EXPORT_OK = [
@@ -113,32 +107,39 @@ MochiKit.DOM.EXPORT_OK = [
 ];
 
 MochiKit.DOM.DEPRECATED = [
-    ['computedStyle', 'MochiKit.Style.computedStyle', '1.4'],
+    /** @id MochiKit.DOM.computedStyle  */
+    ['computedStyle', 'MochiKit.Style.getStyle', '1.4'],
     /** @id MochiKit.DOM.elementDimensions  */
     ['elementDimensions', 'MochiKit.Style.getElementDimensions', '1.4'],
     /** @id MochiKit.DOM.elementPosition  */
     ['elementPosition', 'MochiKit.Style.getElementPosition', '1.4'],
+    /** @id MochiKit.DOM.getViewportDimensions */
+    ['getViewportDimensions', 'MochiKit.Style.getViewportDimensions', '1.4'],
+    /** @id MochiKit.DOM.hideElement */
     ['hideElement', 'MochiKit.Style.hideElement', '1.4'],
+    /** @id MochiKit.DOM.makeClipping */
+    ['makeClipping', 'MochiKit.Style.makeClipping', '1.4.1'],
+    /** @id MochiKit.DOM.makePositioned */
+    ['makePositioned', 'MochiKit.Style.makePositioned', '1.4.1'],
     /** @id MochiKit.DOM.setElementDimensions */
     ['setElementDimensions', 'MochiKit.Style.setElementDimensions', '1.4'],
     /** @id MochiKit.DOM.setElementPosition */
     ['setElementPosition', 'MochiKit.Style.setElementPosition', '1.4'],
+    /** @id MochiKit.DOM.setDisplayForElement */
     ['setDisplayForElement', 'MochiKit.Style.setDisplayForElement', '1.4'],
     /** @id MochiKit.DOM.setOpacity */
     ['setOpacity', 'MochiKit.Style.setOpacity', '1.4'],
+    /** @id MochiKit.DOM.showElement */
     ['showElement', 'MochiKit.Style.showElement', '1.4'],
+    /** @id MochiKit.DOM.undoClipping */
+    ['undoClipping', 'MochiKit.Style.undoClipping', '1.4.1'],
+    /** @id MochiKit.DOM.undoPositioned */
+    ['undoPositioned', 'MochiKit.Style.undoPositioned', '1.4.1'],
     /** @id MochiKit.DOM.Coordinates */
     ['Coordinates', 'MochiKit.Style.Coordinates', '1.4'], // FIXME: broken
     /** @id MochiKit.DOM.Dimensions */
     ['Dimensions', 'MochiKit.Style.Dimensions', '1.4'] // FIXME: broken
 ];
-
-/** @id MochiKit.DOM.getViewportDimensions */
-MochiKit.DOM.getViewportDimensions = new Function('' + 
-    'if (!MochiKit["Style"]) {' + 
-    '    throw new Error("This function has been deprecated and depends on MochiKit.Style.");' + 
-    '}' + 
-    'return MochiKit.Style.getViewportDimensions.apply(this, arguments);');
 
 MochiKit.Base.update(MochiKit.DOM, {
 
@@ -156,7 +157,7 @@ MochiKit.Base.update(MochiKit.DOM, {
     withWindow: function (win, func) {
         var self = MochiKit.DOM;
         var oldDoc = self._document;
-        var oldWin = self._win;
+        var oldWin = self._window;
         var rval;
         try {
             self._window = win;
@@ -173,13 +174,13 @@ MochiKit.Base.update(MochiKit.DOM, {
     },
 
     /** @id MochiKit.DOM.formContents  */
-    formContents: function (elem/* = document */) {
+    formContents: function (elem/* = document.body */) {
         var names = [];
         var values = [];
         var m = MochiKit.Base;
         var self = MochiKit.DOM;
         if (typeof(elem) == "undefined" || elem === null) {
-            elem = self._document;
+            elem = self._document.body;
         } else {
             elem = self.getElement(elem);
         }
@@ -197,8 +198,16 @@ MochiKit.Base.update(MochiKit.DOM, {
                     if (elem.type == "select-one") {
                         if (elem.selectedIndex >= 0) {
                             var opt = elem.options[elem.selectedIndex];
+                            var v = opt.value;
+                            if (!v) {
+                                var h = opt.outerHTML;
+                                // internet explorer sure does suck.
+                                if (h && !h.match(/^[^>]+\svalue\s*=/i)) {
+                                    v = opt.text;
+                                }
+                            }
                             names.push(name);
-                            values.push(opt.value);
+                            values.push(v);
                             return null;
                         }
                         // no form elements?
@@ -206,19 +215,27 @@ MochiKit.Base.update(MochiKit.DOM, {
                         values.push("");
                         return null;
                     } else {
-                        var opts = elem.options; 
+                        var opts = elem.options;
                         if (!opts.length) {
                             names.push(name);
                             values.push("");
                             return null;
                         }
-                        for (var i = 0; i < opts.length; i++) { 
+                        for (var i = 0; i < opts.length; i++) {
                             var opt = opts[i];
-                            if (!opt.selected) { 
-                                continue; 
-                            } 
-                            names.push(name); 
-                            values.push(opt.value); 
+                            if (!opt.selected) {
+                                continue;
+                            }
+                            var v = opt.value;
+                            if (!v) {
+                                var h = opt.outerHTML;
+                                // internet explorer sure does suck.
+                                if (h && !h.match(/^[^>]+\svalue\s*=/i)) {
+                                    v = opt.text;
+                                }
+                            }
+                            names.push(name);
+                            values.push(v);
                         }
                         return null;
                     }
@@ -266,14 +283,21 @@ MochiKit.Base.update(MochiKit.DOM, {
         if (im) {
             var iter = im.iter;
             var repeat = im.repeat;
-            var map = m.map;
         }
+        var map = m.map;
         var domConverters = self.domConverters;
         var coerceToDOM = arguments.callee;
         var NotFound = m.NotFound;
         while (true) {
             if (typeof(node) == 'undefined' || node === null) {
                 return null;
+            }
+            // this is a safari childNodes object, avoiding crashes w/ attr
+            // lookup
+            if (typeof(node) == "function" &&
+                    typeof(node.length) == "number" &&
+                    !(node instanceof Function)) {
+                node = im ? im.list(node) : m.extend(null, node);
             }
             if (typeof(node.nodeType) != 'undefined' && node.nodeType > 0) {
                 return node;
@@ -309,6 +333,9 @@ MochiKit.Base.update(MochiKit.DOM, {
                 if (iterNodes) {
                     return map(coerceToDOM, iterNodes, repeat(ctx));
                 }
+            } else if (m.isArrayLike(node)) {
+                var func = function (n) { return coerceToDOM(n, ctx); };
+                return map(func, node);
             }
 
             // adapter
@@ -327,7 +354,7 @@ MochiKit.Base.update(MochiKit.DOM, {
         // mozilla warnings aren't too bright
         return undefined;
     },
-        
+
     /** @id MochiKit.DOM.isChildNode */
     isChildNode: function (node, maybeparent) {
         var self = MochiKit.DOM;
@@ -337,14 +364,14 @@ MochiKit.Base.update(MochiKit.DOM, {
         if (typeof(maybeparent) == "string") {
             maybeparent = self.getElement(maybeparent);
         }
-        if (node === maybeparent) {
-            return true;
+        if (typeof(node) == 'undefined' || node === null) {
+            return false;
         }
-        while (node && node.tagName.toUpperCase() != "BODY") {
-            node = node.parentNode;
+        while (node != null && node !== self._document) {
             if (node === maybeparent) {
                 return true;
             }
+            node = node.parentNode;
         }
         return false;
     },
@@ -365,12 +392,32 @@ MochiKit.Base.update(MochiKit.DOM, {
     getNodeAttribute: function (node, attr) {
         var self = MochiKit.DOM;
         var rename = self.attributeArray.renames[attr];
+        var ignoreValue = self.attributeArray.ignoreAttr[attr];
         node = self.getElement(node);
         try {
             if (rename) {
                 return node[rename];
             }
-            return node.getAttribute(attr);
+            var value = node.getAttribute(attr);
+            if (value != ignoreValue) {
+                return value;
+            }
+        } catch (e) {
+            // pass
+        }
+        return null;
+    },
+
+    /** @id MochiKit.DOM.removeNodeAttribute */
+    removeNodeAttribute: function (node, attr) {
+        var self = MochiKit.DOM;
+        var rename = self.attributeArray.renames[attr];
+        node = self.getElement(node);
+        try {
+            if (rename) {
+                return node[rename];
+            }
+            return node.removeAttribute(attr);
         } catch (e) {
             // pass
         }
@@ -391,7 +438,11 @@ MochiKit.Base.update(MochiKit.DOM, {
                 for (var k in attrs) {
                     var v = attrs[k];
                     if (typeof(v) == 'object' && typeof(elem[k]) == 'object') {
-                        updatetree(elem[k], v);
+                        if (k == "style" && MochiKit.Style) {
+                            MochiKit.Style.setStyle(elem, v);
+                        } else {
+                            updatetree(elem[k], v);
+                        }
                     } else if (k.substring(0, 2) == "on") {
                         if (typeof(v) == "string") {
                             v = new Function(v);
@@ -400,11 +451,15 @@ MochiKit.Base.update(MochiKit.DOM, {
                     } else {
                         elem.setAttribute(k, v);
                     }
+                    if (typeof(elem[k]) == "string" && elem[k] != v) {
+                        // Also set property for weird attributes (see #302)
+                        elem[k] = v;
+                    }
                 }
             } else {
                 // IE is insane in the membrane
                 var renames = self.attributeArray.renames;
-                for (k in attrs) {
+                for (var k in attrs) {
                     v = attrs[k];
                     var renamed = renames[k];
                     if (k == "style" && typeof(v) == "string") {
@@ -413,7 +468,11 @@ MochiKit.Base.update(MochiKit.DOM, {
                         elem[renamed] = v;
                     } else if (typeof(elem[k]) == 'object'
                             && typeof(v) == 'object') {
-                        updatetree(elem[k], v);
+                        if (k == "style" && MochiKit.Style) {
+                            MochiKit.Style.setStyle(elem, v);
+                        } else {
+                            updatetree(elem[k], v);
+                        }
                     } else if (k.substring(0, 2) == "on") {
                         if (typeof(v) == "string") {
                             v = new Function(v);
@@ -421,6 +480,10 @@ MochiKit.Base.update(MochiKit.DOM, {
                         elem[k] = v;
                     } else {
                         elem.setAttribute(k, v);
+                    }
+                    if (typeof(elem[k]) == "string" && elem[k] != v) {
+                        // Also set property for weird attributes (see #302)
+                        elem[k] = v;
                     }
                 }
             }
@@ -453,6 +516,58 @@ MochiKit.Base.update(MochiKit.DOM, {
             }
         }
         return elem;
+    },
+
+
+    /** @id MochiKit.DOM.insertSiblingNodesBefore */
+    insertSiblingNodesBefore: function (node/*, nodes...*/) {
+        var elem = node;
+        var self = MochiKit.DOM;
+        if (typeof(node) == 'string') {
+            elem = self.getElement(node);
+        }
+        var nodeStack = [
+            self.coerceToDOM(
+                MochiKit.Base.extend(null, arguments, 1),
+                elem
+            )
+        ];
+        var parentnode = elem.parentNode;
+        var concat = MochiKit.Base.concat;
+        while (nodeStack.length) {
+            var n = nodeStack.shift();
+            if (typeof(n) == 'undefined' || n === null) {
+                // pass
+            } else if (typeof(n.nodeType) == 'number') {
+                parentnode.insertBefore(n, elem);
+            } else {
+                nodeStack = concat(n, nodeStack);
+            }
+        }
+        return parentnode;
+    },
+
+    /** @id MochiKit.DOM.insertSiblingNodesAfter */
+    insertSiblingNodesAfter: function (node/*, nodes...*/) {
+        var elem = node;
+        var self = MochiKit.DOM;
+
+        if (typeof(node) == 'string') {
+            elem = self.getElement(node);
+        }
+        var nodeStack = [
+            self.coerceToDOM(
+                MochiKit.Base.extend(null, arguments, 1),
+                elem
+            )
+        ];
+
+        if (elem.nextSibling) {
+            return self.insertSiblingNodesBefore(elem.nextSibling, nodeStack);
+        }
+        else {
+            return self.appendChildNodes(elem.parentNode, nodeStack);
+        }
     },
 
     /** @id MochiKit.DOM.replaceChildNodes */
@@ -531,7 +646,8 @@ MochiKit.Base.update(MochiKit.DOM, {
 
     /** @id MochiKit.DOM.removeElement */
     removeElement: function (elem) {
-        var e = MochiKit.DOM.getElement(elem);
+        var self = MochiKit.DOM;
+        var e = self.coerceToDOM(self.getElement(elem));
         e.parentNode.removeChild(e);
         return e;
     },
@@ -542,7 +658,7 @@ MochiKit.Base.update(MochiKit.DOM, {
         dest = self.getElement(dest);
         var parent = dest.parentNode;
         if (src) {
-            src = self.getElement(src);
+            src = self.coerceToDOM(self.getElement(src), parent);
             parent.replaceChild(src, dest);
         } else {
             parent.removeChild(dest);
@@ -572,6 +688,9 @@ MochiKit.Base.update(MochiKit.DOM, {
             parent = self._document;
         }
         parent = self.getElement(parent);
+        if (parent == null) {
+            return [];
+        }
         var children = (parent.getElementsByTagName(tagName)
             || self._document.all);
         if (typeof(className) == 'undefined' || className === null) {
@@ -582,14 +701,16 @@ MochiKit.Base.update(MochiKit.DOM, {
         for (var i = 0; i < children.length; i++) {
             var child = children[i];
             var cls = child.className;
-            if (!cls) {
-                continue;
+            if (typeof(cls) != "string") {
+                cls = child.getAttribute("class");
             }
-            var classNames = cls.split(' ');
-            for (var j = 0; j < classNames.length; j++) {
-                if (classNames[j] == className) {
-                    elements.push(child);
-                    break;
+            if (typeof(cls) == "string") {
+                var classNames = cls.split(' ');
+                for (var j = 0; j < classNames.length; j++) {
+                    if (classNames[j] == className) {
+                        elements.push(child);
+                        break;
+                    }
                 }
             }
         }
@@ -638,7 +759,7 @@ MochiKit.Base.update(MochiKit.DOM, {
     addLoadEvent: function (func) {
         var self = MochiKit.DOM;
         self.addToCallStack(self._window, "onload", func, true);
-        
+
     },
 
     /** @id MochiKit.DOM.focusOnLoad */
@@ -651,7 +772,7 @@ MochiKit.Base.update(MochiKit.DOM, {
             }
         });
     },
-            
+
     /** @id MochiKit.DOM.setElementClass */
     setElementClass: function (element, className) {
         var self = MochiKit.DOM;
@@ -662,7 +783,7 @@ MochiKit.Base.update(MochiKit.DOM, {
             obj.setAttribute("className", className);
         }
     },
-            
+
     /** @id MochiKit.DOM.toggleElementClass */
     toggleElementClass: function (className/*, element... */) {
         var self = MochiKit.DOM;
@@ -679,8 +800,11 @@ MochiKit.Base.update(MochiKit.DOM, {
         var self = MochiKit.DOM;
         var obj = self.getElement(element);
         var cls = obj.className;
+        if (typeof(cls) != "string") {
+            cls = obj.getAttribute("class");
+        }
         // trivial case, no className yet
-        if (cls == undefined || cls.length === 0) {
+        if (typeof(cls) != "string" || cls.length === 0) {
             self.setElementClass(obj, className);
             return true;
         }
@@ -705,8 +829,11 @@ MochiKit.Base.update(MochiKit.DOM, {
         var self = MochiKit.DOM;
         var obj = self.getElement(element);
         var cls = obj.className;
+        if (typeof(cls) != "string") {
+            cls = obj.getAttribute("class");
+        }
         // trivial case, no className yet
-        if (cls == undefined || cls.length === 0) {
+        if (typeof(cls) != "string" || cls.length === 0) {
             return false;
         }
         // other trivial case, set only to className
@@ -741,8 +868,14 @@ MochiKit.Base.update(MochiKit.DOM, {
     /** @id MochiKit.DOM.hasElementClass */
     hasElementClass: function (element, className/*...*/) {
         var obj = MochiKit.DOM.getElement(element);
+        if (obj == null) {
+            return false;
+        }
         var cls = obj.className;
-        if (!cls) {
+        if (typeof(cls) != "string") {
+            cls = obj.getAttribute("class");
+        }
+        if (typeof(cls) != "string") {
             return false;
         }
         var classes = cls.split(" ");
@@ -853,7 +986,7 @@ MochiKit.Base.update(MochiKit.DOM, {
         } else {
             return rval.join("");
         }
-    },    
+    },
 
     /** @id MochiKit.DOM.removeEmptyTextNodes */
     removeEmptyTextNodes: function (element) {
@@ -866,21 +999,88 @@ MochiKit.Base.update(MochiKit.DOM, {
         }
     },
 
+    /** @id MochiKit.DOM.getFirstElementByTagAndClassName */
+    getFirstElementByTagAndClassName: function (tagName, className,
+            /* optional */parent) {
+        var self = MochiKit.DOM;
+        if (typeof(tagName) == 'undefined' || tagName === null) {
+            tagName = '*';
+        }
+        if (typeof(parent) == 'undefined' || parent === null) {
+            parent = self._document;
+        }
+        parent = self.getElement(parent);
+        if (parent == null) {
+            return null;
+        }
+        var children = (parent.getElementsByTagName(tagName)
+            || self._document.all);
+        if (children.length <= 0) {
+            return null;
+        } else if (typeof(className) == 'undefined' || className === null) {
+            return children[0];
+        }
+
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            var cls = child.className;
+            if (typeof(cls) != "string") {
+                cls = child.getAttribute("class");
+            }
+            if (typeof(cls) == "string") {
+                var classNames = cls.split(' ');
+                for (var j = 0; j < classNames.length; j++) {
+                    if (classNames[j] == className) {
+                        return child;
+                    }
+                }
+            }
+        }
+        return null;
+    },
+
+    /** @id MochiKit.DOM.getFirstParentByTagAndClassName */
+    getFirstParentByTagAndClassName: function (elem, tagName, className) {
+        var self = MochiKit.DOM;
+        elem = self.getElement(elem);
+        if (typeof(tagName) == 'undefined' || tagName === null) {
+            tagName = '*';
+        } else {
+            tagName = tagName.toUpperCase();
+        }
+        if (typeof(className) == 'undefined' || className === null) {
+            className = null;
+        }
+        if (elem) {
+            elem = elem.parentNode;
+        }
+        while (elem && elem.tagName) {
+            var curTagName = elem.tagName.toUpperCase();
+            if ((tagName === '*' || tagName == curTagName) &&
+                (className === null || self.hasElementClass(elem, className))) {
+                return elem;
+            }
+            elem = elem.parentNode;
+        }
+        return null;
+    },
+
     __new__: function (win) {
 
         var m = MochiKit.Base;
         if (typeof(document) != "undefined") {
             this._document = document;
-            this._xhtml =
-	        document.createElementNS &&
-		document.createElement("testname").localName == "testname";
+            var kXULNSURI = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+            this._xhtml = (document.documentElement &&
+                document.createElementNS &&
+                document.documentElement.namespaceURI === kXULNSURI);
         } else if (MochiKit.MockDOM) {
             this._document = MochiKit.MockDOM.document;
         }
         this._window = win;
 
-        this.domConverters = new m.AdapterRegistry(); 
-        
+        this.domConverters = new m.AdapterRegistry();
+
         var __tmpElement = this._document.createElement("span");
         var attributeArray;
         if (__tmpElement && __tmpElement.attributes &&
@@ -888,6 +1088,13 @@ MochiKit.Base.update(MochiKit.DOM, {
             // for braindead browsers (IE) that insert extra junk
             var filter = m.filter;
             attributeArray = function (node) {
+                /***
+
+                    Return an array of attributes for a given node,
+                    filtering out attributes that don't belong for
+                    that are inserted by "Certain Browsers".
+
+                ***/
                 return filter(attributeArray.ignoreAttrFilter, node.attributes);
             };
             attributeArray.ignoreAttr = {};
@@ -908,40 +1115,34 @@ MochiKit.Base.update(MochiKit.DOM, {
                 "for": "htmlFor",
                 "readonly": "readOnly",
                 "colspan": "colSpan",
-                "bgcolor": "bgColor"
+                "bgcolor": "bgColor",
+                "cellspacing": "cellSpacing",
+                "cellpadding": "cellPadding"
             };
         } else {
             attributeArray = function (node) {
-                /***
-                    
-                    Return an array of attributes for a given node,
-                    filtering out attributes that don't belong for
-                    that are inserted by "Certain Browsers".
-
-                ***/
                 return node.attributes;
             };
             attributeArray.compliant = true;
+            attributeArray.ignoreAttr = {};
             attributeArray.renames = {};
         }
         this.attributeArray = attributeArray;
 
         // FIXME: this really belongs in Base, and could probably be cleaner
         var _deprecated = function(fromModule, arr) {
-            var modules = arr[1].split('.');
+            var fromName = arr[0];
+            var toName = arr[1];
+            var toModule = toName.split('.')[1];
             var str = '';
-            var obj = {};
-            
-            str += 'if (!MochiKit.' + modules[1] + ') { throw new Error("';
+
+            str += 'if (!MochiKit.' + toModule + ') { throw new Error("';
             str += 'This function has been deprecated and depends on MochiKit.';
-            str += modules[1] + '.");}';
-            str += 'return MochiKit.' + modules[1] + '.' + arr[0];
-            str += '.apply(this, arguments);';
-            
-            obj[modules[2]] = new Function(str);
-            MochiKit.Base.update(MochiKit[fromModule], obj);
+            str += toModule + '.");}';
+            str += 'return ' + toName + '.apply(this, arguments);';
+            MochiKit[fromModule][fromName] = new Function(str);
         }
-        for (var i; i < MochiKit.DOM.DEPRECATED.length; i++) {
+        for (var i = 0; i < MochiKit.DOM.DEPRECATED.length; i++) {
             _deprecated('DOM', MochiKit.DOM.DEPRECATED[i]);
         }
 
@@ -953,6 +1154,12 @@ MochiKit.Base.update(MochiKit.DOM, {
         this.OL = createDOMFunc("ol");
         /** @id MochiKit.DOM.LI */
         this.LI = createDOMFunc("li");
+        /** @id MochiKit.DOM.DL */
+        this.DL = createDOMFunc("dl");
+        /** @id MochiKit.DOM.DT */
+        this.DT = createDOMFunc("dt");
+        /** @id MochiKit.DOM.DD */
+        this.DD = createDOMFunc("dd");
         /** @id MochiKit.DOM.TD */
         this.TD = createDOMFunc("td");
         /** @id MochiKit.DOM.TR */
@@ -989,6 +1196,12 @@ MochiKit.Base.update(MochiKit.DOM, {
         this.H2 = createDOMFunc("h2");
         /** @id MochiKit.DOM.H3 */
         this.H3 = createDOMFunc("h3");
+        /** @id MochiKit.DOM.H4 */
+        this.H4 = createDOMFunc("h4");
+        /** @id MochiKit.DOM.H5 */
+        this.H5 = createDOMFunc("h5");
+        /** @id MochiKit.DOM.H6 */
+        this.H6 = createDOMFunc("h6");
         /** @id MochiKit.DOM.BR */
         this.BR = createDOMFunc("br");
         /** @id MochiKit.DOM.HR */

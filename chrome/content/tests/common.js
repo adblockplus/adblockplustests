@@ -7,39 +7,60 @@ if (typeof Cr == "undefined")
 if (typeof Cu == "undefined")
   eval("const Cu = Components.utils");
 
-let baseURL = Cc["@adblockplus.org/abp/private;1"].getService(Ci.nsIURI);
+Cu.import("resource://gre/modules/Services.jsm");
 
-var geckoVersion = Cc["@mozilla.org/xre/app-info;1"].getService(Ci.nsIXULAppInfo).platformVersion;
-function compareGeckoVersion(version)
+function require(module)
 {
-  Cu.import(baseURL.spec + "Utils.jsm");
-  return Utils.versionComparator.compare(geckoVersion, version);
+  let result = {};
+  result.wrappedJSObject = result;
+  Services.obs.notifyObservers(result, "adblockplus-require", module);
+  return result.exports;
 }
 
-function prepareFilterComponents(keepObservers)
+function getModuleGlobal(module)
 {
-  Cu.import(baseURL.spec + "FilterClasses.jsm");
-  Cu.import(baseURL.spec + "SubscriptionClasses.jsm");
-  window.FilterStorageGlobal = Cu.import(baseURL.spec + "FilterStorage.jsm");
-  Cu.import(baseURL.spec + "Matcher.jsm");
-  window.ElemHideGlobal = Cu.import(baseURL.spec + "ElemHide.jsm");
-  Cu.import(baseURL.spec + "FilterListener.jsm");
-  Cu.import(baseURL.spec + "FilterNotifier.jsm");
+  let result = Cu.getGlobalForObject(require(module));
+  if ("require" in result)
+    result = result.require.scopes[module];
+  return result;
+}
+
+let {Filter, InvalidFilter, CommentFilter, ActiveFilter, RegExpFilter,
+     BlockingFilter, WhitelistFilter, ElemHideFilter} = require("filterClasses");
+let {Subscription, SpecialSubscription, RegularSubscription,
+     ExternalSubscription, DownloadableSubscription} = require("subscriptionClasses");
+let {defaultMatcher, Matcher, CombinedMatcher} = require("matcher");
+let {FilterListener} = require("filterListener");
+let {FilterNotifier} = require("filterNotifier");
+let {FilterStorage} = require("filterStorage");
+let {ElemHide} = require("elemHide");
+
+let geckoVersion = Cc["@mozilla.org/xre/app-info;1"].getService(Ci.nsIXULAppInfo).platformVersion;
+function compareGeckoVersion(version)
+{
+  return Services.vc.compare(geckoVersion, version);
+}
+
+function prepareFilterComponents(keepListeners)
+{
+  window.FilterStorageGlobal = getModuleGlobal("filterStorage");
+  window.FilterNotifierGlobal = getModuleGlobal("filterNotifier");
+  window.ElemHideGlobal = getModuleGlobal("elemHide");
 
   let oldSubscriptions = FilterStorage.subscriptions;
   let oldStorageKnown = FilterStorage.knownSubscriptions;
   let oldSubscriptionsKnown = Subscription.knownSubscriptions;
   let oldFiltersKnown = Filter.knownFilters;
-  let oldObservers = FilterStorageGlobal.observers;
+  let oldListeners = FilterNotifierGlobal.listeners;
   let oldSourceFile = FilterStorage.__lookupGetter__("sourceFile");
 
   FilterStorage.subscriptions = [];
   FilterStorage.knownSubscriptions = {__proto__: null};
   Subscription.knownSubscriptions = {__proto__: null};
   Filter.knownFilters = {__proto__: null};
-  if (!keepObservers)
+  if (!keepListeners)
   {
-    FilterStorageGlobal.observers = [];
+    FilterNotifierGlobal.listeners = [];
   }
 
   defaultMatcher.clear();
@@ -51,7 +72,7 @@ function prepareFilterComponents(keepObservers)
     FilterStorage.knownSubscriptions = oldStorageKnown;
     Subscription.knownSubscriptions = oldSubscriptionsKnown;
     Filter.knownFilters = oldFiltersKnown;
-    FilterStorageGlobal.observers = oldObservers;
+    FilterNotifierGlobal.listeners = oldListeners;
     FilterStorage.__defineGetter__("sourceFile", oldSourceFile);
 
     FilterNotifier.triggerListeners("load");
@@ -60,7 +81,7 @@ function prepareFilterComponents(keepObservers)
   try
   {
     // Disable timeline functions, they slow down tests otherwise
-    Cu.import(baseURL.spec + "TimeLine.jsm");
+    let {TimeLine} = require("timeline");
 
     let oldTimelineLog = TimeLine.log;
     let oldTimelineEnter = TimeLine.enter;
@@ -86,7 +107,7 @@ function prepareFilterComponents(keepObservers)
 
 function preparePrefs()
 {
-  Cu.import(baseURL.spec + "Prefs.jsm");
+  window.Prefs = require("prefs");
 
   let backup = {__proto__: null};
   let getters = {__proto__: null}
@@ -94,8 +115,6 @@ function preparePrefs()
   {
     if (Prefs.__lookupSetter__(pref))
       backup[pref] = Prefs[pref];
-    else if (Prefs.__lookupGetter__(pref))
-      getters[pref] = Prefs.__lookupGetter__(pref);
   }
   Prefs.enabled = true;
 
@@ -103,8 +122,6 @@ function preparePrefs()
   {
     for (let pref in backup)
       Prefs[pref] = backup[pref];
-    for (let pref in getters)
-      Prefs.__defineGetter__(pref, getters[pref]);
   }, false);
 }
 

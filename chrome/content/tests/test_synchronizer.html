@@ -6,9 +6,12 @@
   <link rel="stylesheet" type="text/css" href="/content/tests/SimpleTest/test.css" />
 
   <script type="text/javascript" src="/content/MochiKit/MochiKit.js"></script>
-  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>        
-
   <script type="application/x-javascript;version=1.7" src="../httpd.js"></script>
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/specialpowersAPI.js"></script>
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/SpecialPowersObserverAPI.js"></script>
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/ChromePowers.js"></script>
+  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>
+
   <script type="application/x-javascript;version=1.7" src="common.js"></script>
 
 </head>
@@ -20,8 +23,8 @@
 
   <pre id="test">
   <script type="application/x-javascript;version=1.7">
-    Cu.import(baseURL.spec + "Utils.jsm");
-    let SynchronizerGlobal = Cu.import(baseURL.spec + "Synchronizer.jsm");
+    let {Synchronizer} = require("synchronizer");
+    let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
     prepareFilterComponents();
     preparePrefs();
 
@@ -60,7 +63,7 @@
           nextTask.handler();
 
         // Let all asynchronous actions finish
-        let thread = Utils.threadManager.currentThread;
+        let thread = Services.tm.currentThread;
         let loopStartTime = Date.now();
 
         while (outstandingRequests > 0 || thread.hasPendingEvents())

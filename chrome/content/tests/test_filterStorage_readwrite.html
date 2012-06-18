@@ -6,7 +6,10 @@
   <link rel="stylesheet" type="text/css" href="/content/tests/SimpleTest/test.css" />
 
   <script type="text/javascript" src="/content/MochiKit/MochiKit.js"></script>
-  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>        
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/specialpowersAPI.js"></script>
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/SpecialPowersObserverAPI.js"></script>
+  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/ChromePowers.js"></script>
+  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>
 
   <meta http-equiv="Content-Type" value="text/html; charset=utf-8"/>
   <script type="application/x-javascript;version=1.7" src="common.js"></script>
@@ -4648,7 +4651,6 @@ zeit.de#DIV(class$=_ads)
       }).join("\n");
     }
 
-    Cu.import(baseURL.spec + "Utils.jsm");
     prepareFilterComponents();
     preparePrefs();
 
@@ -4666,19 +4668,16 @@ zeit.de#DIV(class$=_ads)
     testData = testData.replace(/\s+$/, "");
 
     // Make sure not to trigger fallback code on format version changes
-    testData = "version=" + FilterStorageGlobal.formatVersion + "\n" + testData;
+    testData = "version=" + FilterStorage.formatVersion + "\n" + testData;
 
-    let tempFile = Utils.dirService.get("TmpD", Components.interfaces.nsIFile);
-    tempFile.append("temp_patterns.ini");
-    tempFile.createUnique(tempFile.NORMAL_FILE_TYPE, 0666);
+    Cu.import("resource://gre/modules/FileUtils.jsm");
+    let tempFile = FileUtils.getFile("TmpD", "temp_patterns.ini");
+    tempFile.createUnique(tempFile.NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
 
     {
-      let fileStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
-                                 .createInstance(Components.interfaces.nsIFileOutputStream);
-      fileStream.init(tempFile, 0x02 | 0x08 | 0x20, 0644, 0);
+      let fileStream = FileUtils.openFileOutputStream(tempFile, FileUtils.MODE_WRONLY | FileUtils.MODE_CREATE | FileUtils.MODE_TRUNCATE);
 
-      let stream = Components.classes["@mozilla.org/intl/converter-output-stream;1"]
-                             .createInstance(Components.interfaces.nsIConverterOutputStream);
+      let stream = Cc["@mozilla.org/intl/converter-output-stream;1"].createInstance(Ci.nsIConverterOutputStream);
       stream.init(fileStream, "UTF-8", 16384, Components.interfaces.nsIConverterInputStream.DEFAULT_REPLACEMENT_CHARACTER);
       stream.writeString(testData);
       stream.close();
@@ -4702,7 +4701,7 @@ zeit.de#DIV(class$=_ads)
 
     is(canonize(readFile(tempFile)), canonize(testData), "Read/write result");
 
-    Cu.import(baseURL.spec + "Public.jsm");
+    Cu.import(Cc["@adblockplus.org/abp/public;1"].getService(Ci.nsIURI).spec);
     AdblockPlus.updateExternalSubscription("~external~external subscription ID", "External subscription", ["foo", "bar"]);
 
     let externalSubscriptions = FilterStorage.subscriptions.filter(function (subscription) subscription instanceof ExternalSubscription);

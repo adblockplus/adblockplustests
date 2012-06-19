@@ -33,8 +33,11 @@
     deepEqual(result, expected, test);
   }
 
-  test("Adding and removing subscriptions", function()
+  test("Adding subscriptions", function()
   {
+    let subscription1 = Subscription.fromURL("http://test1/");
+    let subscription2 = Subscription.fromURL("http://test2/");
+
     let changes = [];
     function listener(action, subscription)
     {
@@ -42,75 +45,129 @@
     }
     FilterNotifier.addListener(listener);
 
-    let subscription1 = Subscription.fromURL("http://test1/");
-    let subscription2 = Subscription.fromURL("http://test2/");
-    let subscription3 = Subscription.fromURL("http://test3/");
-
-    compareSubscriptionList("No subscriptions", []);
+    compareSubscriptionList("Initial state", []);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
     FilterStorage.addSubscription(subscription1);
-    compareSubscriptionList("add(test1)", [subscription1]);
+    compareSubscriptionList("Regular add", [subscription1]);
     deepEqual(changes, ["subscription.added http://test1/"], "Received changes");
 
     changes = [];
     FilterStorage.addSubscription(subscription1);
-    compareSubscriptionList("add(test1) again", [subscription1]);
-    deepEqual(changes, [], "Received changes");
-
-    changes = [];
-    FilterStorage.removeSubscription(subscription2);
-    compareSubscriptionList("remove(test2)", [subscription1]);
+    compareSubscriptionList("Adding already added subscription", [subscription1]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
     FilterStorage.addSubscription(subscription2, true);
-    compareSubscriptionList("add(test2) silent", [subscription1, subscription2]);
+    compareSubscriptionList("Silent add", [subscription1, subscription2]);
     deepEqual(changes, [], "Received changes");
 
-    changes = [];
-    FilterStorage.addSubscription(subscription3);
-    compareSubscriptionList("add(test3)", [subscription1, subscription2, subscription3]);
-    deepEqual(changes, ["subscription.added http://test3/"], "Received changes");
+    FilterStorage.removeSubscription(subscription1);
+    compareSubscriptionList("Remove", [subscription2]);
 
     changes = [];
-    FilterStorage.removeSubscription(subscription1, true);
-    compareSubscriptionList("remove(test1) silent", [subscription2, subscription3]);
+    FilterStorage.addSubscription(subscription1);
+    compareSubscriptionList("Re-adding previously removed subscription", [subscription2, subscription1]);
+    deepEqual(changes, ["subscription.added http://test1/"], "Received changes");
+  });
+
+  test("Removing subscriptions", function()
+  {
+    let subscription1 = Subscription.fromURL("http://test1/");
+    let subscription2 = Subscription.fromURL("http://test2/");
+    FilterStorage.addSubscription(subscription1);
+    FilterStorage.addSubscription(subscription2);
+
+    let changes = [];
+    function listener(action, subscription)
+    {
+      changes.push(action + " " + subscription.url);
+    }
+    FilterNotifier.addListener(listener);
+
+    compareSubscriptionList("Initial state", [subscription1, subscription2]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
     FilterStorage.removeSubscription(subscription1);
-    compareSubscriptionList("remove(test1) again", [subscription2, subscription3]);
+    compareSubscriptionList("Regular remove", [subscription2]);
+    deepEqual(changes, ["subscription.removed http://test1/"], "Received changes");
+
+    changes = [];
+    FilterStorage.removeSubscription(subscription1);
+    compareSubscriptionList("Removing already removed subscription", [subscription2]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
+    FilterStorage.removeSubscription(subscription2, true);
+    compareSubscriptionList("Silent remove", []);
+    deepEqual(changes, [], "Received changes");
+
     FilterStorage.addSubscription(subscription1);
-    compareSubscriptionList("add(test1)", [subscription2, subscription3, subscription1]);
-    deepEqual(changes, ["subscription.added http://test1/"], "Received changes");
+    compareSubscriptionList("Add", [subscription1]);
 
     changes = [];
-    FilterStorage.moveSubscription(subscription1, subscription2);
-    compareSubscriptionList("move(test1)", [subscription1, subscription2, subscription3]);
+    FilterStorage.removeSubscription(subscription1);
+    compareSubscriptionList("Re-removing previously added subscription", []);
+    deepEqual(changes, ["subscription.removed http://test1/"], "Received changes");
+  });
+
+  test("Moving subscriptions", function()
+  {
+    let subscription1 = Subscription.fromURL("http://test1/");
+    let subscription2 = Subscription.fromURL("http://test2/");
+    let subscription3 = Subscription.fromURL("http://test3/");
+
+    FilterStorage.addSubscription(subscription1);
+    FilterStorage.addSubscription(subscription2);
+    FilterStorage.addSubscription(subscription3);
+
+    let changes = [];
+    function listener(action, subscription)
+    {
+      changes.push(action + " " + subscription.url);
+    }
+    FilterNotifier.addListener(listener);
+
+    compareSubscriptionList("Initial state", [subscription1, subscription2, subscription3]);
+    deepEqual(changes, [], "Received changes");
+
+    changes = [];
+    FilterStorage.moveSubscription(subscription1);
+    compareSubscriptionList("Move without explicit position", [subscription2, subscription3, subscription1]);
     deepEqual(changes, ["subscription.moved http://test1/"], "Received changes");
 
     changes = [];
-    FilterStorage.moveSubscription(subscription1, subscription2);
-    compareSubscriptionList("move(test1) again", [subscription1, subscription2, subscription3]);
+    FilterStorage.moveSubscription(subscription1);
+    compareSubscriptionList("Move without explicit position (subscription already last)", [subscription2, subscription3, subscription1]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
-    FilterStorage.removeSubscription(subscription3);
-    compareSubscriptionList("remove(test3)", [subscription1, subscription2]);
-    deepEqual(changes, ["subscription.removed http://test3/"], "Received changes");
+    FilterStorage.moveSubscription(subscription2, subscription1);
+    compareSubscriptionList("Move with explicit position", [subscription3, subscription2, subscription1]);
+    deepEqual(changes, ["subscription.moved http://test2/"], "Received changes");
 
     changes = [];
-    FilterStorage.removeSubscription(subscription3);
-    compareSubscriptionList("remove(test3) again", [subscription1, subscription2]);
+    FilterStorage.moveSubscription(subscription3, subscription2);
+    compareSubscriptionList("Move without explicit position (subscription already at position)", [subscription3, subscription2, subscription1]);
+    deepEqual(changes, [], "Received changes");
+
+    FilterStorage.removeSubscription(subscription2);
+    compareSubscriptionList("Remove", [subscription3, subscription1]);
+
+    changes = [];
+    FilterStorage.moveSubscription(subscription3, subscription2);
+    compareSubscriptionList("Move before removed subscription", [subscription1, subscription3]);
+    deepEqual(changes, ["subscription.moved http://test3/"], "Received changes");
+
+    changes = [];
+    FilterStorage.moveSubscription(subscription2);
+    compareSubscriptionList("Move of removed subscription", [subscription1, subscription3]);
     deepEqual(changes, [], "Received changes");
   });
 
-  test("Adding and removing filters", function()
+  test("Adding filters", function()
   {
     let subscription1 = Subscription.fromURL("blocking");
     subscription1.defaults = ["blocking"];
@@ -131,94 +188,153 @@
     }
     FilterNotifier.addListener(listener);
 
-    compareFiltersList("No filters", [[], [], []]);
+    compareFiltersList("Initial state", [[], [], []]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("foo"));
-    compareFiltersList("add(foo)", [["foo"], [], []]);
+    compareFiltersList("Adding blocking filter", [["foo"], [], []]);
     deepEqual(changes, ["filter.added foo"], "Received changes");
 
     changes = [];
-    FilterStorage.addFilter(Filter.fromText("bar"));
-    compareFiltersList("add(bar)", [["foo", "bar"], [], []]);
-    deepEqual(changes, ["filter.added bar"], "Received changes");
-
-    changes = [];
-    FilterStorage.removeFilter(Filter.fromText("foobar"));
-    compareFiltersList("remove(foobar)", [["foo", "bar"], [], []]);
-    deepEqual(changes, [], "Received changes");
-
-    changes = [];
-    FilterStorage.addFilter(Filter.fromText("@@ddd"));
-    compareFiltersList("add(@@ddd)", [["foo", "bar"], ["@@ddd"], []]);
-    deepEqual(changes, ["filter.added @@ddd"], "Received changes");
-
-    changes = [];
-    FilterStorage.addFilter(Filter.fromText("!foobar"));
-    compareFiltersList("add(!foobar)", [["foo", "bar"], ["@@ddd"], ["!foobar"]]);
-    deepEqual(changes, ["filter.added !foobar"], "Received changes");
-
-    changes = [];
-    FilterStorage.removeFilter(Filter.fromText("bar"));
-    compareFiltersList("remove(bar)", [["foo"], ["@@ddd"], ["!foobar"]]);
-    deepEqual(changes, ["filter.removed bar"], "Received changes");
-
-    changes = [];
-    FilterStorage.removeFilter(Filter.fromText("@@ddd"));
-    compareFiltersList("remove(@@ddd)", [["foo"], [], ["!foobar"]]);
-    deepEqual(changes, ["filter.removed @@ddd"], "Received changes");
+    FilterStorage.addFilter(Filter.fromText("@@bar"));
+    compareFiltersList("Adding exception rule", [["foo"], ["@@bar"], []]);
+    deepEqual(changes, ["filter.added @@bar"], "Received changes");
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("foo#bar"));
-    compareFiltersList("add(foo#bar)", [["foo"], ["foo#bar"], ["!foobar"]]);
+    compareFiltersList("Adding hiding rule", [["foo"], ["@@bar", "foo#bar"], []]);
     deepEqual(changes, ["filter.added foo#bar"], "Received changes");
 
     changes = [];
-    FilterStorage.addFilter(Filter.fromText("!foobar"), subscription1);
-    compareFiltersList("add(!foobar) to sub1", [["foo", "!foobar"], ["foo#bar"], ["!foobar"]]);
+    FilterStorage.addFilter(Filter.fromText("!foobar"), undefined, undefined, true);
+    compareFiltersList("Adding comment silent", [["foo"], ["@@bar", "foo#bar"], ["!foobar"]]);
+    deepEqual(changes, [], "Received changes");
+
+    changes = [];
+    FilterStorage.addFilter(Filter.fromText("foo"));
+    compareFiltersList("Adding already added filter", [["foo"], ["@@bar", "foo#bar"], ["!foobar"]]);
+    deepEqual(changes, [], "Received changes");
+
+    subscription1.disabled = true;
+
+    changes = [];
+    FilterStorage.addFilter(Filter.fromText("foo"));
+    compareFiltersList("Adding filter already in a disabled subscription", [["foo"], ["@@bar", "foo#bar"], ["!foobar", "foo"]]);
+    deepEqual(changes, ["filter.added foo"], "Received changes");
+
+    changes = [];
+    FilterStorage.addFilter(Filter.fromText("foo"), subscription1);
+    compareFiltersList("Adding filter to an explicit subscription", [["foo", "foo"], ["@@bar", "foo#bar"], ["!foobar", "foo"]]);
+    deepEqual(changes, ["filter.added foo"], "Received changes");
+
+    changes = [];
+    FilterStorage.addFilter(Filter.fromText("!foobar"), subscription2, 0);
+    compareFiltersList("Adding filter to an explicit subscription with position", [["foo", "foo"], ["!foobar", "@@bar", "foo#bar"], ["!foobar", "foo"]]);
     deepEqual(changes, ["filter.added !foobar"], "Received changes");
+  });
 
-    changes = [];
-    FilterStorage.moveFilter(Filter.fromText("!foobar"), subscription1, 1, 0);
-    compareFiltersList("move(!foobar)", [["!foobar", "foo"], ["foo#bar"], ["!foobar"]]);
-    deepEqual(changes, ["filter.moved !foobar"], "Received changes");
+  test("Removing filters", function()
+  {
+    let subscription1 = Subscription.fromURL("foo");
+    subscription1.filters = [Filter.fromText("foo"), Filter.fromText("foo"), Filter.fromText("bar")];
 
-    changes = [];
-    FilterStorage.moveFilter(Filter.fromText("!foobar"), subscription1, 0, 0);
-    compareFiltersList("move(!foobar) again", [["!foobar", "foo"], ["foo#bar"], ["!foobar"]]);
+    let subscription2 = Subscription.fromURL("bar");
+    subscription2.filters = [Filter.fromText("foo"), Filter.fromText("bar"), Filter.fromText("foo")];
+
+    let subscription3 = Subscription.fromURL("http://test/");
+    subscription3.filters = [Filter.fromText("foo"), Filter.fromText("bar")];
+
+    FilterStorage.addSubscription(subscription1);
+    FilterStorage.addSubscription(subscription2);
+    FilterStorage.addSubscription(subscription3);
+
+    let changes = [];
+    function listener(action, filter)
+    {
+      changes.push(action + " " + filter.text);
+    }
+    FilterNotifier.addListener(listener);
+
+    compareFiltersList("Initial state", [["foo", "foo", "bar"], ["foo", "bar", "foo"], ["foo", "bar"]]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
-    FilterStorage.moveFilter(Filter.fromText("!foobar"), subscription1, 1, 0);
-    compareFiltersList("invalid move", [["!foobar", "foo"], ["foo#bar"], ["!foobar"]]);
+    FilterStorage.removeFilter(Filter.fromText("foo"), subscription2, 0);
+    compareFiltersList("Remove with explicit subscription and position", [["foo", "foo", "bar"], ["bar", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, ["filter.removed foo"], "Received changes");
+
+    changes = [];
+    FilterStorage.removeFilter(Filter.fromText("foo"), subscription2, 0);
+    compareFiltersList("Remove with explicit subscription and wrong position", [["foo", "foo", "bar"], ["bar", "foo"], ["foo", "bar"]]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
-    FilterStorage.addFilter(Filter.fromText("!foobar"), subscription2);
-    compareFiltersList("add(!foobar) to sub2", [["!foobar", "foo"], ["foo#bar", "!foobar"], ["!foobar"]]);
-    deepEqual(changes, ["filter.added !foobar"], "Received changes");
+    FilterStorage.removeFilter(Filter.fromText("foo"), subscription1);
+    compareFiltersList("Remove with explicit subscription", [["bar"], ["bar", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, ["filter.removed foo", "filter.removed foo"], "Received changes");
 
     changes = [];
-    FilterStorage.addFilter(Filter.fromText("!foobar"), subscription2, 0, true);
-    compareFiltersList("add(!foobar) to sub2 position 0 silent", [["!foobar", "foo"], ["!foobar", "foo#bar", "!foobar"], ["!foobar"]]);
+    FilterStorage.removeFilter(Filter.fromText("foo"), subscription1);
+    compareFiltersList("Remove from subscription not having the filter", [["bar"], ["bar", "foo"], ["foo", "bar"]]);
     deepEqual(changes, [], "Received changes");
 
-    subscription2.disabled = true;
     changes = [];
-    FilterStorage.addFilter(Filter.fromText("@@asdf"));
-    compareFiltersList("add(@@asdf)", [["!foobar", "foo"], ["!foobar", "foo#bar", "!foobar"], ["!foobar", "@@asdf"]]);
-    deepEqual(changes, ["filter.added @@asdf"], "Received changes");
+    FilterStorage.removeFilter(Filter.fromText("bar"));
+    compareFiltersList("Remove everywhere", [[], ["foo"], ["foo", "bar"]]);
+    deepEqual(changes, ["filter.removed bar", "filter.removed bar"], "Received changes");
 
     changes = [];
-    FilterStorage.removeFilter(Filter.fromText("!foobar"), subscription2, 0);
-    compareFiltersList("remove(!foobar) from sub2 position 0", [["!foobar", "foo"], ["foo#bar", "!foobar"], ["!foobar", "@@asdf"]]);
-    deepEqual(changes, ["filter.removed !foobar"], "Received changes");
+    FilterStorage.removeFilter(Filter.fromText("bar"));
+    compareFiltersList("Remove of unknown filter", [[], ["foo"], ["foo", "bar"]]);
+    deepEqual(changes, [], "Received changes");
+  });
+
+  test("Moving filters", function()
+  {
+    let subscription1 = Subscription.fromURL("foo");
+    subscription1.filters = [Filter.fromText("foo"), Filter.fromText("bar"), Filter.fromText("bas"), Filter.fromText("foo")];
+
+    let subscription2 = Subscription.fromURL("http://test/");
+    subscription2.filters = [Filter.fromText("foo"), Filter.fromText("bar")];
+
+    FilterStorage.addSubscription(subscription1);
+    FilterStorage.addSubscription(subscription2);
+
+    let changes = [];
+    function listener(action, filter)
+    {
+      changes.push(action + " " + filter.text);
+    }
+    FilterNotifier.addListener(listener);
+
+    compareFiltersList("Initial state", [["foo", "bar", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, [], "Received changes");
 
     changes = [];
-    FilterStorage.removeFilter(Filter.fromText("!foobar"));
-    compareFiltersList("remove(!foobar)", [["foo"], ["foo#bar"], ["@@asdf"]]);
-    deepEqual(changes, ["filter.removed !foobar", "filter.removed !foobar", "filter.removed !foobar"], "Received changes");
+    FilterStorage.moveFilter(Filter.fromText("foo"), subscription1, 0, 1);
+    compareFiltersList("Regular move", [["bar", "foo", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, ["filter.moved foo"], "Received changes");
+
+    changes = [];
+    FilterStorage.moveFilter(Filter.fromText("foo"), subscription1, 0, 3);
+    compareFiltersList("Invalid move", [["bar", "foo", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, [], "Received changes");
+
+    changes = [];
+    FilterStorage.moveFilter(Filter.fromText("foo"), subscription2, 0, 1);
+    compareFiltersList("Invalid subscription", [["bar", "foo", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, [], "Received changes");
+
+    changes = [];
+    FilterStorage.moveFilter(Filter.fromText("foo"), subscription1, 1, 1);
+    compareFiltersList("Move to current position", [["bar", "foo", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, [], "Received changes");
+
+    changes = [];
+    FilterStorage.moveFilter(Filter.fromText("bar"), subscription1, 0, 1);
+    compareFiltersList("Regular move", [["foo", "bar", "bas", "foo"], ["foo", "bar"]]);
+    deepEqual(changes, ["filter.moved bar"], "Received changes");
   });
 
   test("Hit counts", function()

@@ -31,6 +31,7 @@ let {FilterListener} = require("filterListener");
 let {FilterNotifier} = require("filterNotifier");
 let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
+let {Prefs} = require("prefs");
 let {Utils} = require("utils");
 
 let geckoVersion = Services.appinfo.platformVersion;
@@ -109,22 +110,19 @@ function restoreFilterComponents()
 
 function preparePrefs()
 {
-  window.Prefs = require("prefs");
-
-  let backup = {__proto__: null};
-  let getters = {__proto__: null}
+  this._pbackup = {__proto__: null};
   for (let pref in Prefs)
   {
     if (Prefs.__lookupSetter__(pref))
-      backup[pref] = Prefs[pref];
+      this._pbackup[pref] = Prefs[pref];
   }
   Prefs.enabled = true;
+}
 
-  window.addEventListener("unload", function()
-  {
-    for (let pref in backup)
-      Prefs[pref] = backup[pref];
-  }, false);
+function restorePrefs()
+{
+  for (let pref in this._pbackup)
+    Prefs[pref] = this._pbackup[pref];
 }
 
 function showProfilingData(debuggerService)

@@ -281,7 +281,7 @@
         {
           let [wnd, node, item] = policyHits[0];
 
-          equal(item.location, expectedURL, "Checking request URL");
+          equal(item.location, expectedURL, "Request URL");
 
           expectedStatus = (stage == 1 ? "allowed" : "blocked");
           let actualStatus = (item.filter ? "blocked" : "allowed");

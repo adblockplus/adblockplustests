@@ -1,41 +1,22 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-  <title>Regexp filter matching tests</title>
+(function()
+{
+  module("Matching of blocking filters", {setup: prepareFilterComponents, teardown: restoreFilterComponents});
 
-  <link rel="stylesheet" type="text/css" href="/content/tests/SimpleTest/test.css" />
-
-  <script type="text/javascript" src="/content/MochiKit/MochiKit.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/specialpowersAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/SpecialPowersObserverAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/ChromePowers.js"></script>
-  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>
-
-  <meta http-equiv="Content-Type" value="text/html; charset=utf-8"/>
-  <script type="application/x-javascript;version=1.7" src="common.js"></script>
-</head>
-<body>
-  <p id="display"></p>
-  <div id="content" style="display: none">
-
-  </div>
-  <pre id="test">
-  <script type="application/x-javascript;version=1.7">
-    prepareFilterComponents();
-
-    function testMatch(text, location, contentType, docDomain, thirdParty, expected)
+  function testMatch(text, location, contentType, docDomain, thirdParty, expected)
+  {
+    function testMatch_internal(text, location, contentType, docDomain, thirdParty, expected)
     {
-      function testMatch_internal(text, location, contentType, docDomain, thirdParty, expected)
-      {
-        let filter = Filter.fromText(text);
-        let result = filter.matches(location, contentType, docDomain, thirdParty);
-        is(!!result, expected, '"' + text + '".matches(' + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ")");
-      }
-      testMatch_internal(text, location, contentType, docDomain, thirdParty, expected);
-      if (!/^@@/.test(text))
-        testMatch_internal("@@" + text, location, contentType, docDomain, thirdParty, expected);
+      let filter = Filter.fromText(text);
+      let result = filter.matches(location, contentType, docDomain, thirdParty);
+      equal(!!result, expected, '"' + text + '".matches(' + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ")");
     }
+    testMatch_internal(text, location, contentType, docDomain, thirdParty, expected);
+    if (!/^@@/.test(text))
+      testMatch_internal("@@" + text, location, contentType, docDomain, thirdParty, expected);
+  }
 
+  test("Basic filters", function()
+  {
     testMatch("abc", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc", "http://ABC/adf", "IMAGE", null, false, true);
     testMatch("abc", "http://abd/adf", "IMAGE", null, false, false);
@@ -50,6 +31,10 @@
     testMatch("||example.com/foo/bar|", "http://example.com/foo/bar", "IMAGE", null, false, true);
     testMatch("||example.com/foo", "http://foo.com/http://example.com/foo/bar", "IMAGE", null, false, false);
     testMatch("||example.com/foo|", "http://example.com/foo/bar", "IMAGE", null, false, false);
+  });
+
+  test("Separator placeholders", function()
+  {
     testMatch("abc^d", "http://abc/def", "IMAGE", null, false, true);
     testMatch("abc^e", "http://abc/def", "IMAGE", null, false, false);
     testMatch("def^", "http://abc/def", "IMAGE", null, false, true);
@@ -73,6 +58,10 @@
     testMatch("||пример.ру^", "http://пример.ру.ру/foo/bar", "IMAGE", null, false, false);
     testMatch("||пример.ру^", "http://пример.ру-ководитель.ру/foo/bar", "IMAGE", null, false, false);
     testMatch("||пример.ру^foo", "http://пример.ру/foo/bar", "IMAGE", null, false, true);
+  });
+
+  test("Wildcard matching", function()
+  {
     testMatch("abc*d", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc*d", "http://abcd/af", "IMAGE", null, false, true);
     testMatch("abc*d", "http://abc/d/af", "IMAGE", null, false, true);
@@ -82,6 +71,10 @@
     testMatch("|*abc", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc*|", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc***d", "http://abc/adf", "IMAGE", null, false, true);
+  });
+
+  test("Type options", function()
+  {
     testMatch("abc$image", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc$other", "http://abc/adf", "IMAGE", null, false, false);
     testMatch("abc$other", "http://abc/adf", "OTHER", null, false, true);
@@ -161,6 +154,10 @@
     testMatch("abc$image,~third-party", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("abc$image,~third-party", "http://abc/adf", "IMAGE", null, true, false);
     testMatch("abc$~image,~third-party", "http://abc/adf", "IMAGE", null, false, false);
+  });
+
+  test("Regular expressions", function()
+  {
     testMatch("/abc/", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("/abc/", "http://abcd/adf", "IMAGE", null, false, true);
     testMatch("*/abc/", "http://abc/adf", "IMAGE", null, false, true);
@@ -169,6 +166,10 @@
     testMatch("/a\\wc/", "http://a1c/adf", "IMAGE", null, false, true);
     testMatch("/a\\wc/", "http://a_c/adf", "IMAGE", null, false, true);
     testMatch("/a\\wc/", "http://a%c/adf", "IMAGE", null, false, false);
+  });
+
+  test("Regular expressions with type options", function()
+  {
     testMatch("/abc/$image", "http://abc/adf", "IMAGE", null, false, true);
     testMatch("/abc/$image", "http://aBc/adf", "IMAGE", null, false, true);
     testMatch("/abc/$script", "http://abc/adf", "IMAGE", null, false, false);
@@ -188,7 +189,10 @@
     testMatch("/abc/$~match-case", "http://aBc/adf", "IMAGE", null, true, true);
     testMatch("/ab{2}c/$~match-case", "http://abc/adf", "IMAGE", null, false, false);
     testMatch("/ab{2}c/$~match-case", "http://aBc/adf", "IMAGE", null, true, false);
+  });
 
+  test("Domain restrictions", function()
+  {
     testMatch("abc$domain=foo.com", "http://abc/def", "IMAGE", "foo.com", true, true);
     testMatch("abc$domain=foo.com", "http://abc/def", "IMAGE", "foo.com.", true, true);
     testMatch("abc$domain=foo.com", "http://abc/def", "IMAGE", "www.foo.com", true, true);
@@ -269,7 +273,10 @@
     testMatch("abc$domain=foo.com,~image", "http://abc/def", "IMAGE", "bar.com", true, false);
     testMatch("abc$domain=foo.com,~image", "http://abc/def", "OBJECT", "foo.com", true, true);
     testMatch("abc$domain=foo.com,~image", "http://abc/def", "OBJECT", "bar.com", true, false);
+  });
 
+  test("Exception rules", function()
+  {
     testMatch("@@test", "http://test/", "DOCUMENT", null, false, false);
     testMatch("@@http://test*", "http://test/", "DOCUMENT", null, false, true);
     testMatch("@@ftp://test*", "ftp://test/", "DOCUMENT", null, false, true);
@@ -282,7 +289,5 @@
     testMatch("@@test$document,domain=foo.com", "http://test/", "DOCUMENT", "bar.com", false, false);
     testMatch("@@test$document,domain=~foo.com", "http://test/", "DOCUMENT", "foo.com", false, false);
     testMatch("@@test$document,domain=~foo.com", "http://test/", "DOCUMENT", "bar.com", false, true);
-  </script>
-  </pre>
-</body>
-</html>
+  });
+})();

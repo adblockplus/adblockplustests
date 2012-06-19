@@ -358,7 +358,7 @@
 
     let changes = [];
     FilterStorage.increaseHitCount(filter1);
-    equal(filter1.hitCount, 1, "Hit count after increase (filter in least)");
+    equal(filter1.hitCount, 1, "Hit count after increase (filter in list)");
     ok(filter1.lastHit > 0, "Last hit changed after increase");
     deepEqual(changes, ["filter.hitCount filter1", "filter.lastHit filter1"], "Received changes");
 

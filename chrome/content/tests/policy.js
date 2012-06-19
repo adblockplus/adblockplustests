@@ -217,13 +217,6 @@
     policyHits.push([wnd, node, item]);
   }
 
-  let stageDescriptions = {
-    1: "running without filters",
-    2: "running with filter %S",
-    3: "running with filter %S and site exception",
-    4: "running with filter %S and exception not applicable to sites",
-  };
-
   function runTest([name, body, expectedURL, expectedType, expectedDomain, expectedThirdParty], stage)
   {
     defaultMatcher.clear();
@@ -298,12 +291,18 @@
     frame.contentWindow.location.href = "http://127.0.0.1:1234/test";
   }
 
+  let stageDescriptions = {
+    1: "running without filters",
+    2: "running with filter %S",
+    3: "running with filter %S and site exception",
+    4: "running with filter %S and exception not applicable to sites",
+  };
+
   for (let test = 0; test < tests.length; test++)
   {
+    let [name, body, expectedURL, expectedType, expectedDomain, expectedThirdParty] = tests[test];
     for (let stage = 1; stage in stageDescriptions; stage++)
     {
-      let [name, body, expectedURL, expectedType, expectedDomain, expectedThirdParty] = tests[test];
-
       let stageDescription = stageDescriptions[stage];
       if (stageDescription.indexOf("%S") >= 0)
         stageDescription = stageDescription.replace("%S", expectedURL);

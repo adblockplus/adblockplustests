@@ -96,7 +96,7 @@ function restoreFilterComponents()
   FilterNotifierGlobal.listeners = this._backup.listeners;
   FilterStorage.__defineGetter__("sourceFile", this._backup.sourceFile);
 
-  FilterNotifier.triggerListeners("load");
+  scheduleReinit();
 
   if ("timelineLeave" in this._backup)
   {
@@ -106,6 +106,23 @@ function restoreFilterComponents()
     TimeLine.enter = this._backup.timelineEnter;
     TimeLine.leave = this._backup.timelineLeave;
   }
+}
+
+// Only reinit our data structures when all the tests are done to prevent
+// slowing down text execution
+let reinitScheduled = false;
+function scheduleReinit()
+{
+  if (reinitScheduled)
+    return;
+
+  let origDone = QUnit.done;
+  QUnit.done = function()
+  {
+    FilterNotifier.triggerListeners("load");
+    return origDone.apply(this, arguments);
+  };
+  reinitScheduled = true;
 }
 
 function preparePrefs()

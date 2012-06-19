@@ -115,7 +115,7 @@
     ],
     [
       "HTML script",
-      '<' + 'script src="test.js"><' + '/script>',
+      '<script src="test.js"></script>',
       "http://127.0.0.1:1234/test.js", "script", "127.0.0.1", false
     ],
     [
@@ -147,13 +147,19 @@
     ],
     [
       "XMLHttpRequest loading",
-      '<script>var request = new XMLHttpRequest();request.open("GET", "test.xml", false);request.send(null);</' + 'script>',
+      '<script>var request = new XMLHttpRequest();request.open("GET", "test.xml", false);request.send(null);</script>',
       "http://127.0.0.1:1234/test.xml", "xmlhttprequest", "127.0.0.1", false
     ],
     [
       "XML document loading",
-      '<script>var xmlDoc = document.implementation.createDocument(null, "root", null);xmlDoc.async = false;xmlDoc.load("test.xml")</' + 'script>',
+      '<script>var xmlDoc = document.implementation.createDocument(null, "root", null);xmlDoc.async = false;xmlDoc.load("test.xml")</script>',
       "http://127.0.0.1:1234/test.xml", "xmlhttprequest", "127.0.0.1", false
+    ],
+    [
+      "Web worker",
+      '<script>new Worker("test.js");</script>' +
+        '<script>var r = new XMLHttpRequest();r.open("GET", "", false);r.send(null);</script>',
+      "http://127.0.0.1:1234/test.js", "script", "127.0.0.1", false
     ],
   ];
 
@@ -161,12 +167,14 @@
   {
     tests.push([
       "HTML embed (Flash)",
-      '<embed type="application/x-shockwave-flash" src="test.swf"></embed>',
+      '<embed type="application/x-shockwave-flash" src="test.swf"></embed>' +
+        '<script>var r = new XMLHttpRequest();r.open("GET", "", false);r.send(null);</script>',
       "http://127.0.0.1:1234/test.swf", "object", "127.0.0.1", false
     ],
     [
       "HTML object (Flash)",
-      '<object type="application/x-shockwave-flash" data="test.swf"></object>',
+      '<object type="application/x-shockwave-flash" data="test.swf"></object>' +
+        '<script>var r = new XMLHttpRequest();r.open("GET", "", false);r.send(null);</script>',
       "http://127.0.0.1:1234/test.swf", "object", "127.0.0.1", false
     ]);
   }

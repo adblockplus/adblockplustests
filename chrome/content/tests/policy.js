@@ -7,7 +7,7 @@
   module("Content policy", {
     setup: function()
     {
-      prepareFilterComponents.call(this, true);
+      prepareFilterComponents.call(this);
       preparePrefs.call(this);
 
       server = new nsHttpServer();

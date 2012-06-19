@@ -10,7 +10,6 @@ function require(module)
   let result = {};
   result.wrappedJSObject = result;
   Services.obs.notifyObservers(result, "adblockplus-require", module);
-  Cu.reportError(module + " " + result.exports);
   return result.exports;
 }
 
@@ -32,6 +31,7 @@ let {FilterNotifier} = require("filterNotifier");
 let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
 let {Prefs} = require("prefs");
+let {RequestNotifier} = require("requestNotifier");
 let {Utils} = require("utils");
 
 let geckoVersion = Services.appinfo.platformVersion;

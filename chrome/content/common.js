@@ -1,11 +1,7 @@
-if (typeof Cc == "undefined")
-  eval("const Cc = Components.classes");
-if (typeof Ci == "undefined")
-  eval("const Ci = Components.interfaces");
-if (typeof Cr == "undefined")
-  eval("const Cr = Components.results");
-if (typeof Cu == "undefined")
-  eval("const Cu = Components.utils");
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+const Cr = Components.results;
+const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -14,6 +10,7 @@ function require(module)
   let result = {};
   result.wrappedJSObject = result;
   Services.obs.notifyObservers(result, "adblockplus-require", module);
+  Cu.reportError(module + " " + result.exports);
   return result.exports;
 }
 
@@ -34,8 +31,9 @@ let {FilterListener} = require("filterListener");
 let {FilterNotifier} = require("filterNotifier");
 let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
+let {Utils} = require("utils");
 
-let geckoVersion = Cc["@mozilla.org/xre/app-info;1"].getService(Ci.nsIXULAppInfo).platformVersion;
+let geckoVersion = Services.appinfo.platformVersion;
 function compareGeckoVersion(version)
 {
   return Services.vc.compare(geckoVersion, version);
@@ -43,16 +41,16 @@ function compareGeckoVersion(version)
 
 function prepareFilterComponents(keepListeners)
 {
-  window.FilterStorageGlobal = getModuleGlobal("filterStorage");
-  window.FilterNotifierGlobal = getModuleGlobal("filterNotifier");
-  window.ElemHideGlobal = getModuleGlobal("elemHide");
+  let FilterNotifierGlobal = getModuleGlobal("filterNotifier");
 
-  let oldSubscriptions = FilterStorage.subscriptions;
-  let oldStorageKnown = FilterStorage.knownSubscriptions;
-  let oldSubscriptionsKnown = Subscription.knownSubscriptions;
-  let oldFiltersKnown = Filter.knownFilters;
-  let oldListeners = FilterNotifierGlobal.listeners;
-  let oldSourceFile = FilterStorage.__lookupGetter__("sourceFile");
+  this._backup = {
+    subscriptions: FilterStorage.subscriptions,
+    storageKnown: FilterStorage.knownSubscriptions,
+    subscriptionsKnown: Subscription.knownSubscriptions,
+    filtersKnown: Filter.knownFilters,
+    listeners: FilterNotifierGlobal.listeners,
+    sourceFile: FilterStorage.__lookupGetter__("sourceFile")
+  };
 
   FilterStorage.subscriptions = [];
   FilterStorage.knownSubscriptions = {__proto__: null};
@@ -66,42 +64,46 @@ function prepareFilterComponents(keepListeners)
   defaultMatcher.clear();
   ElemHide.clear();
 
-  window.addEventListener("unload", function()
-  {
-    FilterStorage.subscriptions = oldSubscriptions;
-    FilterStorage.knownSubscriptions = oldStorageKnown;
-    Subscription.knownSubscriptions = oldSubscriptionsKnown;
-    Filter.knownFilters = oldFiltersKnown;
-    FilterNotifierGlobal.listeners = oldListeners;
-    FilterStorage.__defineGetter__("sourceFile", oldSourceFile);
-
-    FilterNotifier.triggerListeners("load");
-  }, false);
-
   try
   {
     // Disable timeline functions, they slow down tests otherwise
     let {TimeLine} = require("timeline");
 
-    let oldTimelineLog = TimeLine.log;
-    let oldTimelineEnter = TimeLine.enter;
-    let oldTimelineLeave = TimeLine.leave;
+    this._backup.timelineLog = TimeLine.log;
+    this._backup.timelineEnter = TimeLine.enter;
+    this._backup.timelineLeave = TimeLine.leave;
 
     TimeLine.log = function(){};
     TimeLine.enter = function(){};
     TimeLine.leave = function(){};
-
-    window.addEventListener("unload", function()
-    {
-      TimeLine.log = oldTimelineLog;
-      TimeLine.enter = oldTimelineEnter;
-      TimeLine.leave = oldTimelineLeave;
-    }, false);
   }
   catch(e)
   {
     // TimeLine module might not be present, catch exceptions
     alert(e);
+  }
+}
+
+function restoreFilterComponents()
+{
+  let FilterNotifierGlobal = getModuleGlobal("filterNotifier");
+
+  FilterStorage.subscriptions = this._backup.subscriptions;
+  FilterStorage.knownSubscriptions = this._backup.storageKnown;
+  Subscription.knownSubscriptions = this._backup.subscriptionsKnown;
+  Filter.knownFilters = this._backup.filtersKnown;
+  FilterNotifierGlobal.listeners = this._backup.listeners;
+  FilterStorage.__defineGetter__("sourceFile", this._backup.sourceFile);
+
+  FilterNotifier.triggerListeners("load");
+
+  if ("timelineLeave" in this._backup)
+  {
+    let {TimeLine} = require("timeline");
+
+    TimeLine.log = this._backup.timelineLog;
+    TimeLine.enter = this._backup.timelineEnter;
+    TimeLine.leave = this._backup.timelineLeave;
   }
 }
 

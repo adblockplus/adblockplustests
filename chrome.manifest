@@ -1,2 +1,1 @@
-content   mochikit chrome/content/
-content   mochitests chrome/content/
+content adblockplustests chrome/content/

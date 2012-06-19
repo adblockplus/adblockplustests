@@ -1,95 +1,79 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-  <title>Filter matcher tests</title>
+(function()
+{
+  module("Filter matcher", {setup: prepareFilterComponents, teardown: restoreFilterComponents});
 
-  <link rel="stylesheet" type="text/css" href="/content/tests/SimpleTest/test.css" />
-
-  <script type="text/javascript" src="/content/MochiKit/MochiKit.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/specialpowersAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/SpecialPowersObserverAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/ChromePowers.js"></script>
-  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>
-
-  <script type="application/x-javascript;version=1.7" src="common.js"></script>
-</head>
-<body>
-  <p id="display"></p>
-  <div id="content" style="display: none">
-
-  </div>
-  <pre id="test">
-  <script type="application/x-javascript;version=1.7">
-    prepareFilterComponents();
-
-    function compareKeywords(text, expected)
+  function compareKeywords(text, expected)
+  {
+    for each (let filter in [Filter.fromText(text), Filter.fromText("@@" + text)])
     {
-      for each (let filter in [Filter.fromText(text), Filter.fromText("@@" + text)])
+      let matcher = new Matcher();
+      let result = [];
+      for each (let dummy in expected)
       {
-        let result = [];
-        for each (let dummy in expected)
+        keyword = matcher.findKeyword(filter);
+        result.push(keyword);
+        if (keyword)
         {
-          keyword = matcher.findKeyword(filter);
-          result.push(keyword);
-          if (keyword)
-          {
-            let dummyFilter = Filter.fromText('^' + keyword + '^');
-            dummyFilter.filterCount = Infinity;
-            matcher.add(dummyFilter);
-          }
+          let dummyFilter = Filter.fromText('^' + keyword + '^');
+          dummyFilter.filterCount = Infinity;
+          matcher.add(dummyFilter);
         }
-  
-        is(result.join(", "), expected.join(", "), "Keyword candidates for " + filter.text);
-        matcher.clear();
       }
+
+      equal(result.join(", "), expected.join(", "), "Keyword candidates for " + filter.text);
     }
-    function checkMatch(filters, location, contentType, docDomain, thirdParty, expected)
+  }
+
+  function checkMatch(filters, location, contentType, docDomain, thirdParty, expected)
+  {
+    let matcher = new Matcher();
+    for each (let filter in filters)
+      matcher.add(Filter.fromText(filter));
+
+    let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
+    if (result)
+      result = result.text;
+
+    equal(result, expected, "match(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with:\n" + filters.join("\n"));
+
+    let combinedMatcher = new CombinedMatcher();
+    for (let i = 0; i < 2; i++)
     {
       for each (let filter in filters)
-        matcher.add(Filter.fromText(filter));
+        combinedMatcher.add(Filter.fromText(filter));
 
-      let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
+      let result = combinedMatcher.matchesAny(location, contentType, docDomain, thirdParty);
       if (result)
         result = result.text;
 
-      is(result, expected, "match(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with:\n" + filters.join("\n"));
-      matcher.clear();
+      equal(result, expected, "combinedMatch(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with:\n" + filters.join("\n"));
 
-      for (let i = 0; i < 2; i++)
-      {
-        for each (let filter in filters)
-          combinedMatcher.add(Filter.fromText(filter));
-
-        let result = combinedMatcher.matchesAny(location, contentType, docDomain, thirdParty);
-        if (result)
-          result = result.text;
-
-        is(result, expected, "combinedMatch(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with:\n" + filters.join("\n"));
-
-        // For next run: add whitelisting filters
-        filters = filters.map(function(text) "@@" + text);
-        if (expected)
-          expected = "@@" + expected;
-      }
-      combinedMatcher.clear();
+      // For next run: add whitelisting filters
+      filters = filters.map(function(text) "@@" + text);
+      if (expected)
+        expected = "@@" + expected;
     }
-    function cacheCheck(location, contentType, docDomain, thirdParty, expected)
-    {
-      let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
-      if (result)
-        result = result.text;
+  }
 
-      is(result, expected, "match(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with static filters");
-    }
+  function cacheCheck(matcher, location, contentType, docDomain, thirdParty, expected)
+  {
+    let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
+    if (result)
+      result = result.text;
 
-    is(typeof Matcher, "function", "typeof Matcher");
-    is(typeof CombinedMatcher, "function", "typeof CombinedMatcher");
-    is(typeof defaultMatcher, "object", "typeof defaultMatcher");
+    equal(result, expected, "match(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with static filters");
+  }
+
+  test("Matcher class definitions", function()
+  {
+    equal(typeof Matcher, "function", "typeof Matcher");
+    equal(typeof CombinedMatcher, "function", "typeof CombinedMatcher");
+    equal(typeof defaultMatcher, "object", "typeof defaultMatcher");
     ok(defaultMatcher instanceof CombinedMatcher, "defaultMatcher is a CombinedMatcher instance");
+  });
 
-    let matcher = new Matcher();
-    let combinedMatcher = new CombinedMatcher();
-
+  test("Keyword extraction", function()
+  {
     compareKeywords("*", []);
     compareKeywords("asdf", []);
     compareKeywords("/asdf/", []);
@@ -110,7 +94,10 @@
     compareKeywords("/123^ad2&ad$script,domain=example.com", ["123", "ad2"]);
     compareKeywords("^foobar^$donottrack", ["foobar"]);
     compareKeywords("*$donottrack", ["donottrack"]);
+  });
 
+  test("Filter matching", function()
+  {
     checkMatch([], "http://abc/def", "IMAGE", null, false, null);
     checkMatch(["abc"], "http://abc/def", "IMAGE", null, false, "abc");
     checkMatch(["abc", "ddd"], "http://abc/def", "IMAGE", null, false, "abc");
@@ -173,9 +160,11 @@
     checkMatch(["*$donottrack"], "http://ccc/def", "IMAGE", "example.com", false, null);
     checkMatch(["*$donottrack,third-party"], "http://ccc/def", "DONOTTRACK", "example.com", true, "*$donottrack,third-party");
     checkMatch(["*$donottrack,third-party"], "http://ccc/def", "DONOTTRACK", "example.com", false, null);
+  });
 
-    // Testing whether result cache messes up results
-    matcher = new CombinedMatcher();
+  test("Result cache checks", function()
+  {
+    let matcher = new CombinedMatcher();
     matcher.add(Filter.fromText("abc$image"));
     matcher.add(Filter.fromText("abc$script"));
     matcher.add(Filter.fromText("abc$~image,~script,~document"));
@@ -186,23 +175,22 @@
     matcher.add(Filter.fromText("http://def$~image,~script,~document"));
     matcher.add(Filter.fromText("http://fed$third-party"));
     matcher.add(Filter.fromText("http://fed$~third-party,~script"));
-    cacheCheck("http://abc", "IMAGE", null, false, "abc$image");
-    cacheCheck("http://abc", "SCRIPT", null, false, "abc$script");
-    cacheCheck("http://abc", "OTHER", null, false, "abc$~image,~script,~document");
-    cacheCheck("http://cba", "IMAGE", null, false, "cba$~third-party,~script");
-    cacheCheck("http://cba", "IMAGE", null, true, "cba$third-party");
-    cacheCheck("http://def", "IMAGE", null, false, "http://def$image");
-    cacheCheck("http://def", "SCRIPT", null, false, "http://def$script");
-    cacheCheck("http://def", "OTHER", null, false, "http://def$~image,~script,~document");
-    cacheCheck("http://fed", "IMAGE", null, false, "http://fed$~third-party,~script");
-    cacheCheck("http://fed", "IMAGE", null, true, "http://fed$third-party");
-    cacheCheck("http://abc_cba", "DOCUMENT", null, false, "cba$~third-party,~script");
-    cacheCheck("http://abc_cba", "DOCUMENT", null, true, "cba$third-party");
-    cacheCheck("http://abc_cba", "SCRIPT", null, false, "abc$script");
-    cacheCheck("http://def?http://fed", "DOCUMENT", null, false, "http://fed$~third-party,~script");
-    cacheCheck("http://def?http://fed", "DOCUMENT", null, true, "http://fed$third-party");
-    cacheCheck("http://def?http://fed", "SCRIPT", null, false, "http://def$script");
-  </script>
-  </pre>
-</body>
-</html>
+
+    cacheCheck(matcher, "http://abc", "IMAGE", null, false, "abc$image");
+    cacheCheck(matcher, "http://abc", "SCRIPT", null, false, "abc$script");
+    cacheCheck(matcher, "http://abc", "OTHER", null, false, "abc$~image,~script,~document");
+    cacheCheck(matcher, "http://cba", "IMAGE", null, false, "cba$~third-party,~script");
+    cacheCheck(matcher, "http://cba", "IMAGE", null, true, "cba$third-party");
+    cacheCheck(matcher, "http://def", "IMAGE", null, false, "http://def$image");
+    cacheCheck(matcher, "http://def", "SCRIPT", null, false, "http://def$script");
+    cacheCheck(matcher, "http://def", "OTHER", null, false, "http://def$~image,~script,~document");
+    cacheCheck(matcher, "http://fed", "IMAGE", null, false, "http://fed$~third-party,~script");
+    cacheCheck(matcher, "http://fed", "IMAGE", null, true, "http://fed$third-party");
+    cacheCheck(matcher, "http://abc_cba", "DOCUMENT", null, false, "cba$~third-party,~script");
+    cacheCheck(matcher, "http://abc_cba", "DOCUMENT", null, true, "cba$third-party");
+    cacheCheck(matcher, "http://abc_cba", "SCRIPT", null, false, "abc$script");
+    cacheCheck(matcher, "http://def?http://fed", "DOCUMENT", null, false, "http://fed$~third-party,~script");
+    cacheCheck(matcher, "http://def?http://fed", "DOCUMENT", null, true, "http://fed$third-party");
+    cacheCheck(matcher, "http://def?http://fed", "SCRIPT", null, false, "http://def$script");
+  });
+})();

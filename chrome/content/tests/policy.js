@@ -195,9 +195,6 @@
     ]);
   }
 
-  // TODO: '<' + 'script>new Worker("test.js");<' + '/script>'
-  // Web workers need special treatment, no way to ensure that web worker loads before the page is loaded.
-
   let policyHits = [];
   function onPolicyHit(wnd, node, item, scanComplete)
   {

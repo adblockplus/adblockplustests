@@ -1,51 +1,51 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <link rel="stylesheet" href="qunit.css"/>
-        <script src="jquery-1.7.1.min.js"></script>
-        <script src="qunit.js"></script>
-        <script src="common.js" type="text/javascript;version=1.7"></script>
-        <script type="text/javascript;version=1.7">
-          Cu.import("resource://gre/modules/Services.jsm");
+  <head>
+    <link rel="stylesheet" href="qunit.css"/>
+    <script src="jquery-1.7.1.min.js"></script>
+    <script src="qunit.js"></script>
+    <script src="common.js" type="text/javascript;version=1.7"></script>
+    <script type="text/javascript;version=1.7">
+      Cu.import("resource://gre/modules/Services.jsm");
 
-          function getTestFiles()
-          {
-            let result = {};
-            result.wrappedJSObject = result;
-            Services.obs.notifyObservers(result, "adblockplustests-require", "info");
+      function getTestFiles()
+      {
+        let result = {};
+        result.wrappedJSObject = result;
+        Services.obs.notifyObservers(result, "adblockplustests-require", "info");
 
-            let {addonRoot} = result.exports;
-            let uri = Services.io.newURI(addonRoot, null, null).QueryInterface(Components.interfaces.nsIJARURI);
+        let {addonRoot} = result.exports;
+        let uri = Services.io.newURI(addonRoot, null, null).QueryInterface(Components.interfaces.nsIJARURI);
 
-            let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
-            zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
+        let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+        zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
 
-            let enumerator = zipReader.findEntries(null);
-            let prefix = "chrome/content/tests/";
-            while (enumerator.hasMore())
-            {
-              let name = enumerator.getNext();
-              if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
-                yield "tests/" + name.replace(prefix, "");
-            }
+        let enumerator = zipReader.findEntries(null);
+        let prefix = "chrome/content/tests/";
+        while (enumerator.hasMore())
+        {
+          let name = enumerator.getNext();
+          if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
+            yield "tests/" + name.replace(prefix, "");
+        }
 
-            zipReader.close();
-          }
+        zipReader.close();
+      }
 
-          for (file in getTestFiles())
-          {
-            let script = document.createElement("script");
-            script.setAttribute("src", file);
-            script.setAttribute("type", "text/javascript;version=1.7");
-            document.documentElement.appendChild(script);
-          }
-      </script>
-    </head>
-    <body>
-        <h1 id="qunit-header">QUnit example</h1>
-        <h2 id="qunit-banner"></h2>
-        <div id="qunit-testrunner-toolbar"></div>
-        <h2 id="qunit-userAgent"></h2>
-        <ol id="qunit-tests"></ol>
-    </body>
+      for (file in getTestFiles())
+      {
+        let script = document.createElement("script");
+        script.setAttribute("src", file);
+        script.setAttribute("type", "text/javascript;version=1.7");
+        document.documentElement.appendChild(script);
+      }
+    </script>
+  </head>
+  <body>
+    <h1 id="qunit-header">QUnit example</h1>
+    <h2 id="qunit-banner"></h2>
+    <div id="qunit-testrunner-toolbar"></div>
+    <h2 id="qunit-userAgent"></h2>
+    <ol id="qunit-tests"></ol>
+  </body>
 </html>

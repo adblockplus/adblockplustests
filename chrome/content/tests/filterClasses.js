@@ -1,186 +1,176 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-  <title>Filter classes tests</title>
+(function()
+{
+  module("Filter classes", {setup: prepareFilterComponents, teardown: restoreFilterComponents});
 
-  <link rel="stylesheet" type="text/css" href="/content/tests/SimpleTest/test.css" />
-
-  <script type="text/javascript" src="/content/MochiKit/MochiKit.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/specialpowersAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/SpecialPowersObserverAPI.js"></script>
-  <script type="text/javascript; version=1.7" src="/content/tests/SimpleTest/ChromePowers.js"></script>
-  <script type="text/javascript" src="/content/tests/SimpleTest/SimpleTest.js"></script>
-
-  <script type="application/x-javascript;version=1.7" src="common.js"></script>
-</head>
-<body>
-  <p id="display"></p>
-  <div id="content" style="display: none">
-
-  </div>
-  <pre id="test">
-  <script type="application/x-javascript;version=1.7">
-    let {Utils} = require("utils");
-
-    prepareFilterComponents();
-
-    function serializeFilter(filter)
+  function serializeFilter(filter)
+  {
+    // Filter serialization only writes out essential properties, need to do a full serialization here
+    let result = [];
+    result.push("text=" + filter.text);
+    if (filter instanceof InvalidFilter)
     {
-      // Filter serialization only writes out essential properties, need to do a full serialization here
-      let result = [];
-      result.push("text=" + filter.text);
-      if (filter instanceof InvalidFilter)
-      {
-        result.push("type=invalid");
-        if (filter.reason)
-          result.push("hasReason");
-      }
-      else if (filter instanceof CommentFilter)
-      {
-        result.push("type=comment");
-      }
-      else if (filter instanceof ActiveFilter)
-      {
-        result.push("disabled=" + filter.disabled);
-        result.push("lastHit=" + filter.lastHit);
-        result.push("hitCount=" + filter.hitCount);
-
-        let domains = [];
-        if (filter.domains)
-        {
-          for (let domain in filter.domains)
-            if (domain != "")
-              domains.push(filter.domains[domain] ? domain : "~" + domain);
-        }
-        result.push("domains=" + domains.sort().join("|"));
-
-        if (filter instanceof RegExpFilter)
-        {
-          result.push("regexp=" + filter.regexp.source);
-          result.push("contentType=" + filter.contentType);
-          result.push("matchCase=" + filter.matchCase);
-
-          result.push("thirdParty=" + filter.thirdParty);
-          if (filter instanceof BlockingFilter)
-          {
-            result.push("type=filterlist");
-            result.push("collapse=" + filter.collapse);
-          }
-          else if (filter instanceof WhitelistFilter)
-          {
-            result.push("type=whitelist");
-          }
-        }
-        else if (filter instanceof ElemHideFilter)
-        {
-          result.push("type=elemhide");
-          result.push("selectorDomain=" + (filter.selectorDomain || ""));
-          result.push("selector=" + filter.selector);
-        }
-      }
-      return result;
+      result.push("type=invalid");
+      if (filter.reason)
+        result.push("hasReason");
     }
-
-    function addDefaults(expected)
+    else if (filter instanceof CommentFilter)
     {
-      let type = null;
-      let hasProperty = {};
-      for each (let entry in expected)
-      {
-        if (/^type=(.*)/.test(entry))
-          type = RegExp.$1;
-        else if (/^(\w+)/.test(entry))
-          hasProperty[RegExp.$1] = true;
-      }
+      result.push("type=comment");
+    }
+    else if (filter instanceof ActiveFilter)
+    {
+      result.push("disabled=" + filter.disabled);
+      result.push("lastHit=" + filter.lastHit);
+      result.push("hitCount=" + filter.hitCount);
 
-      function addProperty(prop, value)
+      let domains = [];
+      if (filter.domains)
       {
-        if (!(prop in hasProperty))
-          expected.push(prop + "=" + value);
+        for (let domain in filter.domains)
+          if (domain != "")
+            domains.push(filter.domains[domain] ? domain : "~" + domain);
       }
+      result.push("domains=" + domains.sort().join("|"));
 
-      if (type == "whitelist" || type == "filterlist" || type == "elemhide")
+      if (filter instanceof RegExpFilter)
       {
-        addProperty("disabled", "false");
-        addProperty("lastHit", "0");
-        addProperty("hitCount", "0");
+        result.push("regexp=" + filter.regexp.source);
+        result.push("contentType=" + filter.contentType);
+        result.push("matchCase=" + filter.matchCase);
+
+        result.push("thirdParty=" + filter.thirdParty);
+        if (filter instanceof BlockingFilter)
+        {
+          result.push("type=filterlist");
+          result.push("collapse=" + filter.collapse);
+        }
+        else if (filter instanceof WhitelistFilter)
+        {
+          result.push("type=whitelist");
+        }
       }
-      if (type == "whitelist" || type == "filterlist")
+      else if (filter instanceof ElemHideFilter)
       {
-        addProperty("contentType", 0x7FFFFFFF & ~(RegExpFilter.typeMap.ELEMHIDE | RegExpFilter.typeMap.DONOTTRACK | RegExpFilter.typeMap.POPUP));
-        addProperty("matchCase", "false");
-        addProperty("thirdParty", "null");
-        addProperty("domains", "");
-      }
-      if (type == "filterlist")
-      {
-        addProperty("collapse", "null");
-      }
-      if (type == "elemhide")
-      {
-        addProperty("selectorDomain", "");
-        addProperty("domains", "");
+        result.push("type=elemhide");
+        result.push("selectorDomain=" + (filter.selectorDomain || ""));
+        result.push("selector=" + filter.selector);
       }
     }
+    return result;
+  }
 
-    function compareFilter(text, expected, postInit)
+  function addDefaults(expected)
+  {
+    let type = null;
+    let hasProperty = {};
+    for each (let entry in expected)
     {
-      addDefaults(expected);
-
-      let filter = Filter.fromText(text);
-      if (postInit)
-        postInit(filter)
-      let result = serializeFilter(filter);
-      is(result.sort().join("\n"), expected.sort().join("\n"), text);
-
-      // Test round-trip
-      let filter2;
-      let buffer = [];
-      filter.serialize(buffer);
-      if (buffer.length)
-      {
-        let map = {__proto__: null};
-        for each (let line in buffer.slice(1))
-        {
-          if (/(.*?)=(.*)/.test(line))
-            map[RegExp.$1] = RegExp.$2;
-        }
-        filter2 = Filter.fromObject(map);
-      }
-      else
-      {
-        filter2 = Filter.fromText(filter.text);
-      }
-
-      is(serializeFilter(filter).join("\n"), serializeFilter(filter2).join("\n"), text + " deserialization");
+      if (/^type=(.*)/.test(entry))
+        type = RegExp.$1;
+      else if (/^(\w+)/.test(entry))
+        hasProperty[RegExp.$1] = true;
     }
 
-    is(typeof Filter, "function", "typeof Filter");
-    is(typeof InvalidFilter, "function", "typeof InvalidFilter");
-    is(typeof CommentFilter, "function", "typeof CommentFilter");
-    is(typeof ActiveFilter, "function", "typeof ActiveFilter");
-    is(typeof RegExpFilter, "function", "typeof RegExpFilter");
-    is(typeof BlockingFilter, "function", "typeof BlockingFilter");
-    is(typeof WhitelistFilter, "function", "typeof WhitelistFilter");
-    is(typeof ElemHideFilter, "function", "typeof ElemHideFilter");
+    function addProperty(prop, value)
+    {
+      if (!(prop in hasProperty))
+        expected.push(prop + "=" + value);
+    }
 
+    if (type == "whitelist" || type == "filterlist" || type == "elemhide")
+    {
+      addProperty("disabled", "false");
+      addProperty("lastHit", "0");
+      addProperty("hitCount", "0");
+    }
+    if (type == "whitelist" || type == "filterlist")
+    {
+      addProperty("contentType", 0x7FFFFFFF & ~(RegExpFilter.typeMap.ELEMHIDE | RegExpFilter.typeMap.DONOTTRACK | RegExpFilter.typeMap.POPUP));
+      addProperty("matchCase", "false");
+      addProperty("thirdParty", "null");
+      addProperty("domains", "");
+    }
+    if (type == "filterlist")
+    {
+      addProperty("collapse", "null");
+    }
+    if (type == "elemhide")
+    {
+      addProperty("selectorDomain", "");
+      addProperty("domains", "");
+    }
+  }
+
+  function compareFilter(text, expected, postInit)
+  {
+    addDefaults(expected);
+
+    let filter = Filter.fromText(text);
+    if (postInit)
+      postInit(filter)
+    let result = serializeFilter(filter);
+    equal(result.sort().join("\n"), expected.sort().join("\n"), text);
+
+    // Test round-trip
+    let filter2;
+    let buffer = [];
+    filter.serialize(buffer);
+    if (buffer.length)
+    {
+      let map = {__proto__: null};
+      for each (let line in buffer.slice(1))
+      {
+        if (/(.*?)=(.*)/.test(line))
+          map[RegExp.$1] = RegExp.$2;
+      }
+      filter2 = Filter.fromObject(map);
+    }
+    else
+    {
+      filter2 = Filter.fromText(filter.text);
+    }
+
+    equal(serializeFilter(filter).join("\n"), serializeFilter(filter2).join("\n"), text + " deserialization");
+  }
+
+  test("Filter class definitions", function()
+  {
+    equal(typeof Filter, "function", "typeof Filter");
+    equal(typeof InvalidFilter, "function", "typeof InvalidFilter");
+    equal(typeof CommentFilter, "function", "typeof CommentFilter");
+    equal(typeof ActiveFilter, "function", "typeof ActiveFilter");
+    equal(typeof RegExpFilter, "function", "typeof RegExpFilter");
+    equal(typeof BlockingFilter, "function", "typeof BlockingFilter");
+    equal(typeof WhitelistFilter, "function", "typeof WhitelistFilter");
+    equal(typeof ElemHideFilter, "function", "typeof ElemHideFilter");
+  });
+
+  test("Comments", function()
+  {
     compareFilter("!asdf", ["type=comment", "text=!asdf"]);
     compareFilter("!foo#bar", ["type=comment", "text=!foo#bar"]);
     compareFilter("!foo##bar", ["type=comment", "text=!foo##bar"]);
+  });
+
+  test("Invalid filters", function()
+  {
     compareFilter("/??/", ["type=invalid", "text=/??/", "hasReason"]);
 
     compareFilter("#dd(asd)(ddd)", ["type=invalid", "text=#dd(asd)(ddd)", "hasReason"]);
     {
       let result = Filter.fromText("#dd(asd)(ddd)").reason;
-      is(result, Utils.getString("filter_elemhide_duplicate_id"), "#dd(asd)(ddd).reason");
+      equal(result, Utils.getString("filter_elemhide_duplicate_id"), "#dd(asd)(ddd).reason");
     }
 
     compareFilter("#*", ["type=invalid", "text=#*", "hasReason"]);
     {
       let result = Filter.fromText("#*").reason;
-      is(result, Utils.getString("filter_elemhide_nocriteria"), "#*.reason");
+      equal(result, Utils.getString("filter_elemhide_nocriteria"), "#*.reason");
     }
+  });
 
+  test("Filters with state", function()
+  {
     compareFilter("blabla", ["type=filterlist", "text=blabla", "regexp=blabla"]);
     compareFilter("blabla_default", ["type=filterlist", "text=blabla_default", "regexp=blabla_default"], function(filter)
     {
@@ -194,10 +184,13 @@
       filter.hitCount = 12;
       filter.lastHit = 20;
     });
+  });
 
-    let t = RegExpFilter.typeMap;
-    let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DONOTTRACK | t.DOCUMENT | t.POPUP);
+  let t = RegExpFilter.typeMap;
+  let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DONOTTRACK | t.DOCUMENT | t.POPUP);
 
+  test("Special characters", function()
+  {
     compareFilter("/ddd|f?a[s]d/", ["type=filterlist", "text=/ddd|f?a[s]d/", "regexp=ddd|f?a[s]d"]);
     compareFilter("*asdf*d**dd*", ["type=filterlist", "text=*asdf*d**dd*", "regexp=asdf.*d.*dd"]);
     compareFilter("|*asd|f*d**dd*|", ["type=filterlist", "text=|*asd|f*d**dd*|", "regexp=^.*asd\\|f.*d.*dd.*$"]);
@@ -207,7 +200,10 @@
     compareFilter("@@*asdf*d**dd*", ["type=whitelist", "text=@@*asdf*d**dd*", "regexp=asdf.*d.*dd", "contentType=" + defaultTypes]);
     compareFilter("@@|*asd|f*d**dd*|", ["type=whitelist", "text=@@|*asd|f*d**dd*|", "regexp=^.*asd\\|f.*d.*dd.*$", "contentType=" + defaultTypes]);
     compareFilter("@@dd[]{}$%<>&()d", ["type=whitelist", "text=@@dd[]{}$%<>&()d", "regexp=dd\\[\\]\\{\\}\\$\\%\\<\\>\\&\\(\\)d", "contentType=" + defaultTypes]);
+  });
 
+  test("Filter options", function()
+  {
     compareFilter("bla$match-case,script,other,third-party,domain=foo.com", ["type=filterlist", "text=bla$match-case,script,other,third-party,domain=foo.com", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=FOO.COM"]);
     compareFilter("bla$~match-case,~script,~other,~third-party,domain=~bar.com", ["type=filterlist", "text=bla$~match-case,~script,~other,~third-party,domain=~bar.com", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER) | t.DOCUMENT), "thirdParty=false", "domains=~BAR.COM"]);
     compareFilter("@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com", ["type=whitelist", "text=@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=BAR.COM|FOO.COM|~BAR.FOO.COM|~FOO.BAR.COM"]);
@@ -230,7 +226,10 @@
     compareFilter("@@bla$~script,~other,donottrack", ["type=whitelist", "text=@@bla$~script,~other,donottrack", "regexp=bla", "contentType=" +  (defaultTypes & ~( t.SCRIPT | t.OTHER) | t.DONOTTRACK)]);
     compareFilter("@@bla$~script,~other,~donottrack", ["type=whitelist", "text=@@bla$~script,~other,~donottrack", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER))]);
     compareFilter("@@bla$donottrack", ["type=whitelist", "text=@@bla$donottrack", "regexp=bla", "contentType=" + t.DONOTTRACK]);
+  });
 
+  test("Element hiding rules", function()
+  {
     compareFilter("#ddd", ["type=elemhide", "text=#ddd", "selector=ddd"]);
     compareFilter("#ddd(fff)", ["type=elemhide", "text=#ddd(fff)", "selector=ddd.fff,ddd#fff"]);
     compareFilter("#ddd(foo=bar)(foo2^=bar2)(foo3*=bar3)(foo4$=bar4)", ["type=elemhide", "text=#ddd(foo=bar)(foo2^=bar2)(foo3*=bar3)(foo4$=bar4)", 'selector=ddd[foo="bar"][foo2^="bar2"][foo3*="bar3"][foo4$="bar4"]']);
@@ -242,7 +241,5 @@
     compareFilter("foo,bar#ddd", ["type=elemhide", "text=foo,bar#ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO"]);
     compareFilter("foo,~bar#ddd", ["type=elemhide", "text=foo,~bar#ddd", "selectorDomain=foo", "selector=ddd", "domains=FOO|~BAR"]);
     compareFilter("foo,~baz,bar#ddd", ["type=elemhide", "text=foo,~baz,bar#ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO|~BAZ"]);
-  </script>
-  </pre>
-</body>
-</html>
+  });
+})();

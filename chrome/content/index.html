@@ -11,29 +11,34 @@
 
       function getTestFiles()
       {
-        let result = {};
-        result.wrappedJSObject = result;
-        Services.obs.notifyObservers(result, "adblockplustests-require", "info");
+        let module = {};
+        module.wrappedJSObject = module;
+        Services.obs.notifyObservers(module, "adblockplustests-require", "info");
 
-        let {addonRoot} = result.exports;
+        let {addonRoot} = module.exports;
         let uri = Services.io.newURI(addonRoot, null, null).QueryInterface(Components.interfaces.nsIJARURI);
 
         let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
         zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
 
+        let result = [];
         let enumerator = zipReader.findEntries(null);
         let prefix = "chrome/content/tests/";
         while (enumerator.hasMore())
         {
           let name = enumerator.getNext();
           if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
-            yield "tests/" + name.replace(prefix, "");
+            result.push("tests/" + name.replace(prefix, ""));
         }
 
         zipReader.close();
+
+        result.sort();
+        return result;
       }
 
-      for (file in getTestFiles())
+      let files = getTestFiles();
+      for each (let file in files)
       {
         let script = document.createElement("script");
         script.setAttribute("src", file);

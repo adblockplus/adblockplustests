@@ -22,7 +22,7 @@ function getModuleGlobal(module)
 }
 
 let {Filter, InvalidFilter, CommentFilter, ActiveFilter, RegExpFilter,
-     BlockingFilter, WhitelistFilter, ElemHideFilter} = require("filterClasses");
+     BlockingFilter, WhitelistFilter, ElemHideBase, ElemHideFilter, ElemHideException} = require("filterClasses");
 let {Subscription, SpecialSubscription, RegularSubscription,
      ExternalSubscription, DownloadableSubscription} = require("subscriptionClasses");
 let {defaultMatcher, Matcher, CombinedMatcher} = require("matcher");

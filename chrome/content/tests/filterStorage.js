@@ -207,30 +207,35 @@
     deepEqual(changes, ["filter.added foo#bar"], "Received changes");
 
     changes = [];
+    FilterStorage.addFilter(Filter.fromText("foo#@#bar"));
+    compareFiltersList("Adding hiding exception", [["foo"], ["@@bar", "foo#bar", "foo#@#bar"], []]);
+    deepEqual(changes, ["filter.added foo#@#bar"], "Received changes");
+
+    changes = [];
     FilterStorage.addFilter(Filter.fromText("!foobar"), undefined, undefined, true);
-    compareFiltersList("Adding comment silent", [["foo"], ["@@bar", "foo#bar"], ["!foobar"]]);
+    compareFiltersList("Adding comment silent", [["foo"], ["@@bar", "foo#bar", "foo#@#bar"], ["!foobar"]]);
     deepEqual(changes, [], "Received changes");
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("foo"));
-    compareFiltersList("Adding already added filter", [["foo"], ["@@bar", "foo#bar"], ["!foobar"]]);
+    compareFiltersList("Adding already added filter", [["foo"], ["@@bar", "foo#bar", "foo#@#bar"], ["!foobar"]]);
     deepEqual(changes, [], "Received changes");
 
     subscription1.disabled = true;
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("foo"));
-    compareFiltersList("Adding filter already in a disabled subscription", [["foo"], ["@@bar", "foo#bar"], ["!foobar", "foo"]]);
+    compareFiltersList("Adding filter already in a disabled subscription", [["foo"], ["@@bar", "foo#bar", "foo#@#bar"], ["!foobar", "foo"]]);
     deepEqual(changes, ["filter.added foo"], "Received changes");
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("foo"), subscription1);
-    compareFiltersList("Adding filter to an explicit subscription", [["foo", "foo"], ["@@bar", "foo#bar"], ["!foobar", "foo"]]);
+    compareFiltersList("Adding filter to an explicit subscription", [["foo", "foo"], ["@@bar", "foo#bar", "foo#@#bar"], ["!foobar", "foo"]]);
     deepEqual(changes, ["filter.added foo"], "Received changes");
 
     changes = [];
     FilterStorage.addFilter(Filter.fromText("!foobar"), subscription2, 0);
-    compareFiltersList("Adding filter to an explicit subscription with position", [["foo", "foo"], ["!foobar", "@@bar", "foo#bar"], ["!foobar", "foo"]]);
+    compareFiltersList("Adding filter to an explicit subscription with position", [["foo", "foo"], ["!foobar", "@@bar", "foo#bar", "foo#@#bar"], ["!foobar", "foo"]]);
     deepEqual(changes, ["filter.added !foobar"], "Received changes");
   });
 

@@ -49,9 +49,13 @@
           result.push("type=whitelist");
         }
       }
-      else if (filter instanceof ElemHideFilter)
+      else if (filter instanceof ElemHideBase)
       {
-        result.push("type=elemhide");
+        if (filter instanceof ElemHideFilter)
+          result.push("type=elemhide");
+        else if (filter instanceof ElemHideException)
+          result.push("type=elemhideexception");
+
         result.push("selectorDomain=" + (filter.selectorDomain || ""));
         result.push("selector=" + filter.selector);
       }
@@ -77,7 +81,7 @@
         expected.push(prop + "=" + value);
     }
 
-    if (type == "whitelist" || type == "filterlist" || type == "elemhide")
+    if (type == "whitelist" || type == "filterlist" || type == "elemhide" || type == "elemhideexception")
     {
       addProperty("disabled", "false");
       addProperty("lastHit", "0");
@@ -94,7 +98,7 @@
     {
       addProperty("collapse", "null");
     }
-    if (type == "elemhide")
+    if (type == "elemhide" || type == "elemhideexception")
     {
       addProperty("selectorDomain", "");
       addProperty("domains", "");
@@ -142,7 +146,9 @@
     equal(typeof RegExpFilter, "function", "typeof RegExpFilter");
     equal(typeof BlockingFilter, "function", "typeof BlockingFilter");
     equal(typeof WhitelistFilter, "function", "typeof WhitelistFilter");
+    equal(typeof ElemHideBase, "function", "typeof ElemHideBase");
     equal(typeof ElemHideFilter, "function", "typeof ElemHideFilter");
+    equal(typeof ElemHideException, "function", "typeof ElemHideException");
   });
 
   test("Comments", function()
@@ -241,5 +247,20 @@
     compareFilter("foo,bar#ddd", ["type=elemhide", "text=foo,bar#ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO"]);
     compareFilter("foo,~bar#ddd", ["type=elemhide", "text=foo,~bar#ddd", "selectorDomain=foo", "selector=ddd", "domains=FOO|~BAR"]);
     compareFilter("foo,~baz,bar#ddd", ["type=elemhide", "text=foo,~baz,bar#ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO|~BAZ"]);
+  });
+
+  test("Element hiding exceptions", function()
+  {
+    compareFilter("#@ddd", ["type=elemhideexception", "text=#@ddd", "selector=ddd"]);
+    compareFilter("#@ddd(fff)", ["type=elemhideexception", "text=#@ddd(fff)", "selector=ddd.fff,ddd#fff"]);
+    compareFilter("#@ddd(foo=bar)(foo2^=bar2)(foo3*=bar3)(foo4$=bar4)", ["type=elemhideexception", "text=#@ddd(foo=bar)(foo2^=bar2)(foo3*=bar3)(foo4$=bar4)", 'selector=ddd[foo="bar"][foo2^="bar2"][foo3*="bar3"][foo4$="bar4"]']);
+    compareFilter("#@ddd(fff)(foo=bar)", ["type=elemhideexception", "text=#@ddd(fff)(foo=bar)", 'selector=ddd.fff[foo="bar"],ddd#fff[foo="bar"]']);
+    compareFilter("#@*(fff)", ["type=elemhideexception", "text=#@*(fff)", "selector=.fff,#fff"]);
+    compareFilter("#@*(foo=bar)", ["type=elemhideexception", "text=#@*(foo=bar)", 'selector=[foo="bar"]']);
+    compareFilter("#@#body > div:first-child", ["type=elemhideexception", "text=#@#body > div:first-child", "selector=body > div:first-child"]);
+    compareFilter("foo#@ddd", ["type=elemhideexception", "text=foo#@ddd", "selectorDomain=foo", "selector=ddd", "domains=FOO"]);
+    compareFilter("foo,bar#@ddd", ["type=elemhideexception", "text=foo,bar#@ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO"]);
+    compareFilter("foo,~bar#@ddd", ["type=elemhideexception", "text=foo,~bar#@ddd", "selectorDomain=foo", "selector=ddd", "domains=FOO|~BAR"]);
+    compareFilter("foo,~baz,bar#@ddd", ["type=elemhideexception", "text=foo,~baz,bar#@ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO|~BAZ"]);
   });
 })();

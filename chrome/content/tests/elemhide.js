@@ -93,6 +93,10 @@
     [["###test1", "~localhost#@##test1"], ["hidden", "visible"]],
     [["###test1", "#@##test1"], ["visible", "visible"]],
     [["localhost###test1", "#@##test1"], ["visible", "visible"]],
+
+    [["localhost.###test1"], ["visible", "visible"]],
+    [["localhost.,localhost###test1"], ["hidden", "visible"]],
+    [["localhost.,foo.###test1"], ["visible", "visible"]],
   ];
 
   function runTest([filters, expected], stage)

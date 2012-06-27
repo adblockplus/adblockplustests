@@ -16,7 +16,7 @@
       {
         let body = '<div id="test1" class="testClass">foo</div><p id="test2" class="testClass">bar</p>';
         response.setStatusLine("1.1", "200", "OK");
-        response.setHeader("Content-Type", "text/html");
+        response.setHeader("Content-Type", "text/html; charset=utf-8");
         response.bodyOutputStream.write(body, body.length);
       });
 
@@ -29,11 +29,15 @@
       restoreFilterComponents.call(this);
       restorePrefs.call(this);
 
-      server.stop();
-      frame.parentElement.removeChild(frame);
+      stop();
+      server.stop(function()
+      {
+        frame.parentElement.removeChild(frame);
 
-      server = null;
-      frame = null;
+        server = null;
+        frame = null;
+        start();
+      });
     }
   });
 

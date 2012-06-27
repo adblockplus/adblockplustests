@@ -145,6 +145,68 @@
   asyncTest("Read from URL, write to file", testReadWrite.bind(false));
   asyncTest("Read from URL, add external subscription, write to file", testReadWrite.bind(true));
 
+  let groupTests = [
+    ["~wl~", "whitelist"],
+    ["~fl~", "blocking"],
+    ["~eh~", "elemhide"]
+  ];
+  for (let i = 0; i < groupTests.length; i++)
+  {
+    let [url, defaults] = groupTests[i];
+    asyncTest("Read empty legacy user-defined group (" + url + ")", function()
+    {
+      let data = "[Subscription]\nurl=" + url;
+      let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
+      loadFilters(Services.io.newURI(source, null, null), function()
+      {
+        equal(FilterStorage.subscriptions.length, 0, "Number of filter subscriptions");
+        start();
+      });
+    });
+    asyncTest("Read non-empty legacy user-defined group (" + url + ")", function()
+    {
+      let data = "[Subscription]\nurl=" + url + "\n[Subscription filters]\nfoo";
+      let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
+      loadFilters(Services.io.newURI(source, null, null), function()
+      {
+        equal(FilterStorage.subscriptions.length, 1, "Number of filter subscriptions");
+        if (FilterStorage.subscriptions.length == 1)
+        {
+          let subscription = FilterStorage.subscriptions[0];
+          equal(subscription.url, url, "Subscription ID");
+          equal(subscription.title, Utils.getString(defaults + "Group_title"), "Subscription title");
+          deepEqual(subscription.defaults, [defaults], "Default types");
+          equal(subscription.filters.length, 1, "Number of subscription filters");
+          if (subscription.filters.length == 1)
+            equal(subscription.filters[0].text, "foo", "First filter");
+        }
+        start();
+      });
+    });
+  }
+
+  asyncTest("Read legacy user-defined filters", function()
+  {
+    let data = "[Subscription]\nurl=~user~1234\ntitle=Foo\n[Subscription filters]\n[User patterns]\nfoo\n\\[bar]\nfoo#bar";
+    let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
+    loadFilters(Services.io.newURI(source, null, null), function()
+    {
+      equal(FilterStorage.subscriptions.length, 1, "Number of filter subscriptions");
+      if (FilterStorage.subscriptions.length == 1)
+      {
+        let subscription = FilterStorage.subscriptions[0];
+        equal(subscription.filters.length, 3, "Number of subscription filters");
+        if (subscription.filters.length == 3)
+        {
+          equal(subscription.filters[0].text, "foo", "First filter");
+          equal(subscription.filters[1].text, "[bar]", "Second filter");
+          equal(subscription.filters[2].text, "foo#bar", "Third filter");
+        }
+      }
+      start();
+    });
+  });
+
   asyncTest("Saving without backups", function()
   {
     Prefs.patternsbackups = 0;

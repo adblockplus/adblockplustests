@@ -97,6 +97,8 @@
 
     function saveFile()
     {
+      equal(FilterStorage.fileProperties.version, FilterStorage.formatVersion, "File format version");
+
       if (withExternal)
       {
         let {AdblockPlus} = Cu.import(Cc["@adblockplus.org/abp/public;1"].getService(Ci.nsIURI).spec, null);

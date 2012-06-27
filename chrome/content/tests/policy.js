@@ -24,13 +24,18 @@
       restoreFilterComponents.call(this);
       restorePrefs.call(this);
 
-      server.stop();
-      frame.parentElement.removeChild(frame);
-      requestNotifier.shutdown();
+      stop();
+      server.stop(function()
+      {
+        frame.parentElement.removeChild(frame);
+        requestNotifier.shutdown();
 
-      server = null;
-      frame = null;
-      requestNotifier = null;
+        server = null;
+        frame = null;
+        requestNotifier = null;
+
+        start();
+      });
     }
   });
 
@@ -238,7 +243,7 @@
       let contentType = "text/html";
       if (body.indexOf("2000/svg") >= 0)
         contentType = "image/svg+xml";
-      response.setHeader("Content-Type", contentType);
+      response.setHeader("Content-Type", contentType + "; charset=utf-8");
 
       response.bodyOutputStream.write(body, body.length);
     });

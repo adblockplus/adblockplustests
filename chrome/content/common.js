@@ -32,6 +32,7 @@ let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
 let {Prefs} = require("prefs");
 let {RequestNotifier} = require("requestNotifier");
+let {UI} = require("ui");
 let {Utils} = require("utils");
 
 let geckoVersion = Services.appinfo.platformVersion;

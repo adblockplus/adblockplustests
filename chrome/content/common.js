@@ -82,7 +82,6 @@ function prepareFilterComponents(keepListeners)
   catch(e)
   {
     // TimeLine module might not be present, catch exceptions
-    alert(e);
   }
 }
 

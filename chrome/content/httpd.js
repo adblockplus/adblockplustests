@@ -12,6 +12,34 @@
 
 (function()
 {
+  const EXPORTED_SYMBOLS = [
+    "HTTP_400",
+    "HTTP_401",
+    "HTTP_402",
+    "HTTP_403",
+    "HTTP_404",
+    "HTTP_405",
+    "HTTP_406",
+    "HTTP_407",
+    "HTTP_408",
+    "HTTP_409",
+    "HTTP_410",
+    "HTTP_411",
+    "HTTP_412",
+    "HTTP_413",
+    "HTTP_414",
+    "HTTP_415",
+    "HTTP_417",
+    "HTTP_500",
+    "HTTP_501",
+    "HTTP_502",
+    "HTTP_503",
+    "HTTP_504",
+    "HTTP_505",
+    "HttpError",
+    "HttpServer",
+  ];
+
   let {XPCOMUtils} = Components.utils.import("resource://gre/modules/XPCOMUtils.jsm", null);
 
   const Cc = Components.classes;
@@ -487,12 +515,12 @@
       this._host = host;
 
       // The listen queue needs to be long enough to handle
-      // network.http.max-connections-per-server concurrent connections,
+      // network.http.max-persistent-connections-per-server concurrent connections,
       // plus a safety margin in case some other process is talking to
       // the server as well.
       var prefs = getRootPrefBranch();
       var maxConnections =
-        prefs.getIntPref("network.http.max-connections-per-server") + 5;
+        prefs.getIntPref("network.http.max-persistent-connections-per-server") + 5;
 
       try
       {
@@ -761,6 +789,10 @@
       // Fire a pending server-stopped notification if it's our responsibility.
       if (!this._hasOpenConnections() && this._socketClosed)
         this._notifyStopped();
+      // Bug 508125: Add a GC here else we'll use gigabytes of memory running
+      // mochitests. We can't rely on xpcshell doing an automated GC, as that
+      // would interfere with testing GC stuff...
+      Components.utils.forceGC();
     },
 
     /**
@@ -774,6 +806,7 @@
     }
   };
 
+  var HttpServer = nsHttpServer;
 
   //
   // RFC 2396 section 3.2.2:
@@ -1608,7 +1641,10 @@
       // between fields, even though only a single SP is required (section 19.3)
       var request = line.split(/[ \t]+/);
       if (!request || request.length != 3)
+      {
+        dumpn("*** No request in line");
         throw HTTP_400;
+      }
 
       metadata._method = request[0];
 
@@ -1616,7 +1652,10 @@
       var ver = request[2];
       var match = ver.match(/^HTTP\/(\d+\.\d+)$/);
       if (!match)
+      {
+        dumpn("*** No HTTP version in line");
         throw HTTP_400;
+      }
 
       // determine HTTP version
       try
@@ -1641,7 +1680,10 @@
       {
         // No absolute paths in the request line in HTTP prior to 1.1
         if (!metadata._httpVersion.atLeast(nsHttpVersion.HTTP_1_1))
+        {
+          dumpn("*** Metadata version too low");
           throw HTTP_400;
+        }
 
         try
         {
@@ -1655,11 +1697,18 @@
           if (port === -1)
           {
             if (scheme === "http")
+            {
               port = 80;
+            }
             else if (scheme === "https")
+            {
               port = 443;
+            }
             else
+            {
+              dumpn("*** Unknown scheme: " + scheme);
               throw HTTP_400;
+            }
           }
         }
         catch (e)
@@ -1667,11 +1716,15 @@
           // If the host is not a valid host on the server, the response MUST be a
           // 400 (Bad Request) error message (section 5.2).  Alternately, the URI
           // is malformed.
+          dumpn("*** Threw when dealing with URI: " + e);
           throw HTTP_400;
         }
 
         if (!serverIdentity.has(scheme, host, port) || fullPath.charAt(0) != "/")
+        {
+          dumpn("*** serverIdentity unknown or path does not start with '/'");
           throw HTTP_400;
+        }
       }
 
       var splitter = fullPath.indexOf("?");
@@ -1715,6 +1768,8 @@
       var line = {};
       while (true)
       {
+        dumpn("*** Last name: '" + lastName + "'");
+        dumpn("*** Last val: '" + lastVal + "'");
         NS_ASSERT(!((lastVal === undefined) ^ (lastName === undefined)),
                   lastName === undefined ?
                     "lastVal without lastName?  lastVal: '" + lastVal + "'" :
@@ -1729,6 +1784,7 @@
         }
 
         var lineText = line.value;
+        dumpn("*** Line text: '" + lineText + "'");
         var firstChar = lineText.charAt(0);
 
         // blank line means end of headers
@@ -1743,7 +1799,7 @@
             }
             catch (e)
             {
-              dumpn("*** e == " + e);
+              dumpn("*** setHeader threw on last header, e == " + e);
               throw HTTP_400;
             }
           }
@@ -1761,7 +1817,7 @@
           // multi-line header if we've already seen a header line
           if (!lastName)
           {
-            // we don't have a header to continue!
+            dumpn("We don't have a header to continue!");
             throw HTTP_400;
           }
 
@@ -1780,7 +1836,7 @@
             }
             catch (e)
             {
-              dumpn("*** e == " + e);
+              dumpn("*** setHeader threw on a header, e == " + e);
               throw HTTP_400;
             }
           }
@@ -1788,7 +1844,7 @@
           var colon = lineText.indexOf(":"); // first colon must be splitter
           if (colon < 1)
           {
-            // no colon or missing header field-name
+            dumpn("*** No colon or missing header field-name");
             throw HTTP_400;
           }
 
@@ -1886,6 +1942,13 @@
       if (length < 0)
       {
         this._start = data.length;
+
+        // But if our data ends in a CR, we have to back up one, because
+        // the first byte in the next packet might be an LF and if we
+        // start looking at data.length we won't find it.
+        if (data.length > 0 && data[data.length - 1] === CR)
+          --this._start;
+
         return false;
       }
 
@@ -2525,7 +2588,10 @@
       {
         var rangeMatch = metadata.getHeader("Range").match(/^bytes=(\d+)?-(\d+)?$/);
         if (!rangeMatch)
+        {
+          dumpn("*** Range header bogosity: '" + metadata.getHeader("Range") + "'");
           throw HTTP_400;
+        }
 
         if (rangeMatch[1] !== undefined)
           start = parseInt(rangeMatch[1], 10);
@@ -2534,7 +2600,10 @@
           end = parseInt(rangeMatch[2], 10);
 
         if (start === undefined && end === undefined)
+        {
+          dumpn("*** More Range header bogosity: '" + metadata.getHeader("Range") + "'");
           throw HTTP_400;
+        }
 
         // No start given, so the end is really the count of bytes from the
         // end of the file.
@@ -2949,6 +3018,7 @@
       }
       catch (e)
       {
+        dumpn("*** toInternalPath threw " + e);
         throw HTTP_400; // malformed path
       }
 
@@ -4640,7 +4710,10 @@
     normalizeFieldName: function(fieldName)
     {
       if (fieldName == "")
+      {
+        dumpn("*** Empty fieldName");
         throw Cr.NS_ERROR_INVALID_ARG;
+      }
 
       for (var i = 0, sz = fieldName.length; i < sz; i++)
       {
@@ -4691,9 +4764,13 @@
       val = val.replace(/^ +/, "").replace(/ +$/, "");
 
       // that should have taken care of all CTLs, so val should contain no CTLs
+      dumpn("*** Normalized value: '" + val + "'");
       for (var i = 0, len = val.length; i < len; i++)
         if (isCTL(val.charCodeAt(i)))
+        {
+          dump("*** Char " + i + " has charcode " + val.charCodeAt(i));
           throw Cr.NS_ERROR_INVALID_ARG;
+        }
 
       // XXX disallows quoted-pair where CHAR is a CTL -- will not invalidly
       //     normalize, however, so this can be construed as a tightening of the

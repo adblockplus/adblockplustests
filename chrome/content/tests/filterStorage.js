@@ -5,6 +5,7 @@
     {
       prepareFilterComponents.call(this);
       preparePrefs.call(this);
+      Prefs.savestats = true;
     },
     teardown: function()
     {

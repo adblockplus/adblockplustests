@@ -169,13 +169,13 @@
 
   test("Adding filters", function()
   {
-    let subscription1 = Subscription.fromURL("blocking");
+    let subscription1 = Subscription.fromURL("~blocking");
     subscription1.defaults = ["blocking"];
 
-    let subscription2 = Subscription.fromURL("exceptions");
+    let subscription2 = Subscription.fromURL("~exceptions");
     subscription2.defaults = ["whitelist", "elemhide"];
 
-    let subscription3 = Subscription.fromURL("other");
+    let subscription3 = Subscription.fromURL("~other");
 
     FilterStorage.addSubscription(subscription1);
     FilterStorage.addSubscription(subscription2);
@@ -241,10 +241,10 @@
 
   test("Removing filters", function()
   {
-    let subscription1 = Subscription.fromURL("foo");
+    let subscription1 = Subscription.fromURL("~foo");
     subscription1.filters = [Filter.fromText("foo"), Filter.fromText("foo"), Filter.fromText("bar")];
 
-    let subscription2 = Subscription.fromURL("bar");
+    let subscription2 = Subscription.fromURL("~bar");
     subscription2.filters = [Filter.fromText("foo"), Filter.fromText("bar"), Filter.fromText("foo")];
 
     let subscription3 = Subscription.fromURL("http://test/");
@@ -297,7 +297,7 @@
 
   test("Moving filters", function()
   {
-    let subscription1 = Subscription.fromURL("foo");
+    let subscription1 = Subscription.fromURL("~foo");
     subscription1.filters = [Filter.fromText("foo"), Filter.fromText("bar"), Filter.fromText("bas"), Filter.fromText("foo")];
 
     let subscription2 = Subscription.fromURL("http://test/");

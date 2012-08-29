@@ -82,9 +82,9 @@
     ],
     [
       "CSS list-style-image",
-      <ol>
-        <li style="list-style-image: url(test.gif)">foo</li>
-      </ol>,
+      '<ol>' +
+        '<li style="list-style-image: url(test.gif)">foo</li>' +
+      '</ol>',
       "http://127.0.0.1:1234/test.gif", "image", "127.0.0.1", false
     ],
     [
@@ -104,18 +104,18 @@
     ],
     [
       "SVG image",
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-        <image xlink:href="test.gif"/>
-      </svg>,
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
+        '<image xlink:href="test.gif"/>' +
+      '</svg>',
       "http://127.0.0.1:1234/test.gif", "image", "127.0.0.1", false
     ],
     [
       "SVG filter image",
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-        <filter>
-          <feImage xlink:href="test.gif"/>
-        </filter>
-      </svg>,
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
+        '<filter>' +
+          '<feImage xlink:href="test.gif"/>' +
+        '</filter>' +
+      '</svg>',
       "http://127.0.0.1:1234/test.gif", "image", "127.0.0.1", false
     ],
     [
@@ -125,9 +125,9 @@
     ],
     [
       "SVG script",
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-        <script xlink:href="test.js"/>
-      </svg>,
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
+        '<script xlink:href="test.js"/>' +
+      '</svg>',
       "http://127.0.0.1:1234/test.js", "script", "127.0.0.1", false
     ],
     [
@@ -236,8 +236,6 @@
     let serverHit = false;
     server.registerPathHandler("/test", function(metadata, response)
     {
-      if (body instanceof XML)
-        body = body.toXMLString();
       response.setStatusLine("1.1", "200", "OK");
 
       let contentType = "text/html";

@@ -20,7 +20,7 @@ function getModuleGlobal(module)
   {
     // Work-around for bug 736316 - getGlobalForObject gave us our own window
     let {XPIProvider} = Cu.import("resource://gre/modules/XPIProvider.jsm", null);
-    let addonID = "{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}"
+    let addonID = "{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}";
     if (addonID in XPIProvider.bootstrapScopes)
       result = XPIProvider.bootstrapScopes[addonID];
   }

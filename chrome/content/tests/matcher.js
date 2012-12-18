@@ -93,7 +93,7 @@
     compareKeywords("/123^ad2&ad&", ["123", "ad2"]);
     compareKeywords("/123^ad2&ad$script,domain=example.com", ["123", "ad2"]);
     compareKeywords("^foobar^$donottrack", ["foobar"]);
-    compareKeywords("*$donottrack", ["donottrack"]);
+    compareKeywords("*$donottrack", []);
   });
 
   test("Filter matching", function()

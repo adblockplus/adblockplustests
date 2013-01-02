@@ -8,4 +8,4 @@ author=Wladimir Palant
 default=http://adblockplus.org/en/source
 
 [compat]
-toolkit=8.0/20.0a1
+toolkit=8.0/21.0a1

@@ -3,6 +3,7 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 function require(module)
@@ -41,6 +42,7 @@ let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
 let {Prefs} = require("prefs");
 let {RequestNotifier} = require("requestNotifier");
+let {Synchronizer} = require("synchronizer");
 let {UI} = require("ui");
 let {Utils} = require("utils");
 

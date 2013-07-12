@@ -18,20 +18,25 @@
         let {addonRoot} = module.exports;
         let uri = Services.io.newURI(addonRoot, null, null).QueryInterface(Components.interfaces.nsIJARURI);
 
-        let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
-        zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
-
         let result = [];
-        let enumerator = zipReader.findEntries(null);
-        let prefix = "chrome/content/tests/";
-        while (enumerator.hasMore())
+        if ("test" in QUnit.urlParams)
+          result.push("tests/" + QUnit.urlParams.test + ".js");
+        else
         {
-          let name = enumerator.getNext();
-          if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
-            result.push("tests/" + name.replace(prefix, ""));
-        }
+          let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+          zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
 
-        zipReader.close();
+          let enumerator = zipReader.findEntries(null);
+          let prefix = "chrome/content/tests/";
+          while (enumerator.hasMore())
+          {
+            let name = enumerator.getNext();
+            if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
+              result.push("tests/" + name.replace(prefix, ""));
+          }
+
+          zipReader.close();
+        }
 
         result.sort();
         return result;

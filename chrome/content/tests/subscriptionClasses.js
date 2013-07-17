@@ -39,12 +39,11 @@
     {
       subscription.title = "test";
     });
-    compareSubscription("http://test/non_default", ["url=http://test/non_default", "title=test", "nextURL=http://test2/",
-                                                    "disabled=true", "lastSuccess=8", "lastDownload=12", "lastCheck=16", "softExpiration=18", "expires=20", "downloadStatus=foo", "lastModified=bar",
-                                                    "errors=3", "requiredVersion=0.6", "alternativeLocations=http://foo/;q=0.5,http://bar/;q=2"], function(subscription)
+    compareSubscription("http://test/non_default", ["url=http://test/non_default", "title=test",
+                                                    "disabled=true", "lastSuccess=8", "lastDownload=12", "lastCheck=16", "softExpiration=18", "expires=20", "downloadStatus=foo",
+                                                    "errors=3", "version=24", "requiredVersion=0.6"], function(subscription)
     {
       subscription.title = "test";
-      subscription.nextURL = "http://test2/";
       subscription.disabled = true;
       subscription.lastSuccess = 8;
       subscription.lastDownload = 12;
@@ -52,10 +51,9 @@
       subscription.softExpiration = 18;
       subscription.expires = 20;
       subscription.downloadStatus = "foo";
-      subscription.lastModified = "bar";
       subscription.errors = 3;
+      subscription.version = 24
       subscription.requiredVersion = "0.6";
-      subscription.alternativeLocations = "http://foo/;q=0.5,http://bar/;q=2";
     });
     compareSubscription("~wl~", ["url=~wl~", "disabled=true", "title=Test group"], function(subscription)
     {

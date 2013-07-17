@@ -430,6 +430,44 @@
     }
   });
 
+  test("Checksum verification", function()
+  {
+    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    FilterStorage.addSubscription(subscription);
+
+    let testName, subscriptionBody, expectedResult;
+    let tests = [
+      ["Correct checksum", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoo\nbar\n", true],
+      ["Wrong checksum", "[Adblock]\n! Checksum: wrongggny6Fn24b7JHsq/A\nfoo\nbar\n", false],
+      ["Empty lines ignored", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\n\nfoo\n\nbar\n\n", true],
+      ["CR LF line breaks treated like LR", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoo\r\nbar\r\n", true],
+      ["CR line breaks treated like LR", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoo\rbar\r", true],
+      ["Trailing line break not ignored", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoo\nbar", false],
+      ["Line breaks between lines not ignored", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoobar", false],
+      ["Lines with spaces not ignored", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\n \nfoo\n\nbar\n", false],
+      ["Extra content in checksum line is part of the checksum", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A foobar\nfoo\nbar\n", false],
+      ["= symbols after checksum are ignored", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A===\nfoo\nbar\n", true],
+      ["Header line is part of the checksum", "[Adblock Plus]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\nfoo\nbar\n", false],
+      ["Special comments are part of the checksum", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\n! Expires: 1\nfoo\nbar\n", false],
+    ];
+
+    function handler(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      response.bodyOutputStream.write(subscriptionBody, subscriptionBody.length);
+    }
+    server.registerPathHandler("/subscription", handler);
+
+    for each ([testName, subscriptionBody, expectedResult] in tests)
+    {
+      resetSubscription(subscription);
+      testRunner.runScheduledTasks(2);
+      equal(subscription.downloadStatus, expectedResult ? "synchronize_ok" : "synchronize_checksum_mismatch", testName);
+    }
+  });
+
   test("Redirects", function()
   {
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
@@ -540,7 +578,23 @@
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Valid redirect from fallback is followed");
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop polling original URL after a valid redirect from fallback");
     deepEqual(redirectedRequests, [48.1, 72.1, 96.1], "Request new URL after a valid redirect from fallback");
-  });
 
-  // TODO: Checksum verification
+    function handler2(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\n! Checksum: wrong\nfoo\nbar";
+      response.bodyOutputStream.write(result, result.length);
+    }
+    server.registerPathHandler("/subscription", handler2);
+
+    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    resetSubscription(subscription);
+    FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
+    FilterStorage.addSubscription(subscription);
+
+    testRunner.runScheduledTasks(100);
+    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Wrong checksum produces fallback request");
+  });
 })();

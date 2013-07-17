@@ -21,6 +21,7 @@
 
       let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
       let SynchronizerModule = getModuleGlobal("synchronizer");
+      let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
 
       server = new nsHttpServer();
       server.start(1234);
@@ -31,20 +32,20 @@
 
       // Replace Date.now() function
       this._origNow = SynchronizerGlobal.Date.now;
-      SynchronizerGlobal.Date.now = function() currentTime;
+      SynchronizerGlobal.Date.now = DownloaderGlobal.Date.now = function() currentTime;
 
       // Replace Math.random() function
-      this._origRandom = SynchronizerGlobal.Math.random;
-      SynchronizerGlobal.Math.random = function() randomResult;
+      this._origRandom = DownloaderGlobal.Math.random;
+      DownloaderGlobal.Math.random = function() randomResult;
 
       // Replace global timer variable
-      let timer = {__proto__: SynchronizerModule.timer, delay: 0.1 * MILLIS_IN_HOUR};
+      let timer = {__proto__: SynchronizerModule.downloader._timer, delay: 0.1 * MILLIS_IN_HOUR};
       let callback = timer.callback;
       timer.handler = function() { callback.notify(timer); };
       timer.nextExecution = currentTime + timer.delay;
       scheduledTasks.push(timer);
-      SynchronizerModule.timer.cancel();
-      SynchronizerModule.timer = timer;
+      SynchronizerModule.downloader._timer.cancel();
+      SynchronizerModule.downloader._timer = timer;
 
       // Register observer to track outstanding requests
       this._outstandingRequests = 0;
@@ -69,7 +70,7 @@
         if (skip)
         {
           this._skipTasks(skip);
-          maxHours -= initial;
+          maxHours -= skip;
         }
         this._runScheduledTasks(maxHours);
       }
@@ -115,14 +116,14 @@
       this._skipTasks = function(hours)
       {
         let newTasks = [];
-        let endTime = currentTime + hours * MILLIS_IN_HOUR;
+        currentTime += hours * MILLIS_IN_HOUR;
         for each (let task in scheduledTasks)
         {
-          if (task.nextExecution >= endTime)
+          if (task.nextExecution >= currentTime)
             newTasks.push(task);
           else if (task.type != Components.interfaces.nsITimer.TYPE_ONE_SHOT)
           {
-            task.nextExecution = endTime;
+            task.nextExecution = currentTime;
             newTasks.push(task);
           }
         }
@@ -158,14 +159,17 @@
       if (this._origNow)
       {
         let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
-        SynchronizerGlobal.Date.now = this._origNow;
+        let SynchronizerModule = getModuleGlobal("synchronizer");
+        let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
+        SynchronizerGlobal.Date.now = DownloaderGlobal.Date.now = this._origNow;
         delete this._origNow;
       }
 
       if (this._origRandom)
       {
-        let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
-        SynchronizerGlobal.Math.random = this._origRandom;
+        let SynchronizerModule = getModuleGlobal("synchronizer");
+        let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
+        DownloaderGlobal.Math.random = this._origRandom;
         delete this._origRandom;
       }
 
@@ -177,12 +181,11 @@
   {
     FilterStorage.updateSubscriptionFilters(subscription, []);
     subscription.lastCheck =  subscription.lastDownload =
-      subscription.lastSuccess = subscription.expires =
-      subscription.softExpiration = 0;
+      subscription.lastVersion = subscription.lastSuccess =
+      subscription.expires = subscription.softExpiration = 0;
     subscription.errors = 0;
     subscription.downloadStatus = null;
     subscription.requiredVersion = null;
-    subscription.nextURL = null;
   }
 
   test("Downloads of one subscription", function()
@@ -201,7 +204,7 @@
       response.setStatusLine("1.1", "200", "OK");
       response.setHeader("Content-Type", "text/plain");
 
-      let result = "[Adblock]\nfoo\nbar";
+      let result = "[Adblock]\n! ExPiREs: 1day\nfoo\nbar";
       response.bodyOutputStream.write(result, result.length);
     }
 
@@ -237,7 +240,7 @@
       response.setStatusLine("1.1", "200", "OK");
       response.setHeader("Content-Type", "text/plain");
 
-      let result = "[Adblock]\nfoo\nbar";
+      let result = "[Adblock]\n! ExPiREs: 1day\nfoo\nbar";
       response.bodyOutputStream.write(result, result.length);
     }
 
@@ -271,7 +274,7 @@
       // Wrong content type shouldn't matter
       response.setHeader("Content-Type", "text/xml");
 
-      let result = test.header + "\nfoo\n!bar\n\n@@bas\n#bam";
+      let result = test.header + "\n!Expires: 8 hours\nfoo\n!bar\n\n@@bas\n#bam";
       response.bodyOutputStream.write(result, result.length);
     }
     server.registerPathHandler("/subscription", handler);
@@ -350,9 +353,14 @@
 
     let tests = [
       {
-        expiration: "1 hour",   // Too small, will be corrected
+        expiration: "default",
         randomResult: 0.5,
-        requests: [0.1, 24.1]
+        requests: [0.1, 5 * 24 + 0.1]
+      },
+      {
+        expiration: "1 hours",  // Minimal expiration interval
+        randomResult: 0.5,
+        requests: [0.1, 1.1, 2.1, 3.1]
       },
       {
         expiration: "26 hours",
@@ -413,18 +421,12 @@
       randomResult = test.randomResult;
       resetSubscription(subscription);
 
-      let maxHours = Math.round(Math.max.apply(null, test.requests)) + 12;
+      let maxHours = Math.round(Math.max.apply(null, test.requests)) + 1;
       testRunner.runScheduledTasks(maxHours, test.skipAfter, test.skip);
 
       let randomAddendum = (randomResult == 0.5 ? "" : " with Math.random() returning " + randomResult);
       let skipAddendum = (typeof test.skip != "number" ? "" : " skipping " + test.skip + " hours after " + test.skipAfter + " hours");
       deepEqual(requests, test.requests, "Requests for \"" + test.expiration + "\"" + randomAddendum + skipAddendum);
-
-      if (typeof test.skip == "number")
-      {
-        // Ensure that next time synchronizer triggers at time offset 0.1 again
-        testRunner.runScheduledTasks(0.1);
-      }
     }
   });
 
@@ -443,8 +445,10 @@
     }
     server.registerPathHandler("/subscription", redirect_handler);
 
-    testRunner.runScheduledTasks(50);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/subscription", "Invalid redirect ignored");
+    testRunner.runScheduledTasks(30);
+    equal(FilterStorage.subscriptions[0], subscription, "Invalid redirect ignored");
+    equal(subscription.downloadStatus, "synchronize_connection_error", "Connection error recorded");
+    equal(subscription.errors, 2, "Number of download errors");
 
     let requests = [];
     function handler(metadata, response)
@@ -454,21 +458,21 @@
       response.setStatusLine("1.1", "200", "OK");
       response.setHeader("Content-Type", "text/plain");
 
-      let result = "[Adblock]\nfoo\nbar";
+      let result = "[Adblock]\nfoo\n! Expires: 8 hours\nbar";
       response.bodyOutputStream.write(result, result.length);
     }
     server.registerPathHandler("/redirected", handler);
 
     resetSubscription(subscription);
-    testRunner.runScheduledTasks(50);
+    testRunner.runScheduledTasks(15);
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Redirect followed");
-    deepEqual(requests, [24.1, 48.1], "Resulting requests");
+    deepEqual(requests, [0.1, 8.1], "Resulting requests");
   });
 
   test("Fallback", function()
   {
     Prefs.subscriptions_fallbackerrors = 3;
-    Prefs.subscriptions_fallbackurl = "http://127.0.0.1:1234/fallback?%URL%&%CHANNELSTATUS%&%RESPONSESTATUS%";
+    Prefs.subscriptions_fallbackurl = "http://127.0.0.1:1234/fallback?%SUBSCRIPTION%&%CHANNELSTATUS%&%RESPONSESTATUS%";
 
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
@@ -499,8 +503,9 @@
 
     testRunner.runScheduledTasks(100);
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop trying if the fallback responds with Gone");
-    equal(fallbackParams, "http://127.0.0.1:1234/subscription&0&404");
+    equal(fallbackParams, "http://127.0.0.1:1234/subscription&0&404", "Fallback arguments");
 
+    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);
@@ -514,8 +519,8 @@
       response.bodyOutputStream.write(result, result.length);
     });
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/subscription");
-    deepEqual(requests, [0.1, 24.1, 48.1, 96.1], "Come back after invalid redirect from fallback");
+    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/subscription", "Ignore invalid redirect from fallback");
+    deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Requests not affected by invalid redirect");
 
     resetSubscription(subscription);
     requests = [];
@@ -527,14 +532,14 @@
       response.setStatusLine("1.1", "200", "OK");
       response.setHeader("Content-Type", "text/plain");
 
-      let result = "[Adblock]\nfoo\nbar";
+      let result = "[Adblock]\n!Expires: 1day\nfoo\nbar";
       response.bodyOutputStream.write(result, result.length);
     });
 
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected");
+    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Valid redirect from fallback is followed");
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop polling original URL after a valid redirect from fallback");
-    deepEqual(redirectedRequests, [72.1, 96.1], "Request new URL after a valid redirect from fallback");
+    deepEqual(redirectedRequests, [48.1, 72.1, 96.1], "Request new URL after a valid redirect from fallback");
   });
 
   // TODO: Checksum verification

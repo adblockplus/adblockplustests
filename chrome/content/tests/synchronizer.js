@@ -181,8 +181,10 @@
   {
     FilterStorage.updateSubscriptionFilters(subscription, []);
     subscription.lastCheck =  subscription.lastDownload =
-      subscription.lastVersion = subscription.lastSuccess =
+      subscription.version = subscription.lastSuccess =
       subscription.expires = subscription.softExpiration = 0;
+    subscription.title = "";
+    subscription.homepage = null;
     subscription.errors = 0;
     subscription.downloadStatus = null;
     subscription.requiredVersion = null;
@@ -465,6 +467,42 @@
       resetSubscription(subscription);
       testRunner.runScheduledTasks(2);
       equal(subscription.downloadStatus, expectedResult ? "synchronize_ok" : "synchronize_checksum_mismatch", testName);
+    }
+  });
+
+  test("Special comments", function()
+  {
+    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    FilterStorage.addSubscription(subscription);
+
+    let comment, check;
+    let tests = [
+      ["! Homepage: http://example.com/", function() equal(subscription.homepage, "http://example.com/", "Valid homepage comment")],
+      ["! Homepage: ssh://example.com/", function() equal(subscription.homepage, null, "Invalid homepage comment")],
+      ["! Title: foo", function()
+        {
+          equal(subscription.title, "foo", "Title comment");
+          equal(subscription.fixedTitle, true, "Fixed title");
+        }],
+      ["! Version: 1234", function() equal(subscription.version, 1234, "Version comment")]
+    ];
+
+    function handler(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\n" + comment + "\nfoo\nbar";
+      response.bodyOutputStream.write(result, result.length);
+    }
+    server.registerPathHandler("/subscription", handler);
+
+    for each([comment, check] in tests)
+    {
+      resetSubscription(subscription);
+      testRunner.runScheduledTasks(2);
+      check();
+      deepEqual(subscription.filters, [Filter.fromText("foo"), Filter.fromText("bar")], "Special comment not added to filters");
     }
   });
 

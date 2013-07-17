@@ -434,6 +434,9 @@
 
   test("Checksum verification", function()
   {
+    // Always use average download interval
+    randomResult = 0.5;
+
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -472,6 +475,9 @@
 
   test("Special comments", function()
   {
+    // Always use average download interval
+    randomResult = 0.5;
+
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -508,6 +514,9 @@
 
   test("Redirects", function()
   {
+    // Always use average download interval
+    randomResult = 0.5;
+
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -547,6 +556,9 @@
 
   test("Fallback", function()
   {
+    // Always use average download interval
+    randomResult = 0.5;
+
     Prefs.subscriptions_fallbackerrors = 3;
     Prefs.subscriptions_fallbackurl = "http://127.0.0.1:1234/fallback?%SUBSCRIPTION%&%CHANNELSTATUS%&%RESPONSESTATUS%";
 

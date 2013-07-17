@@ -635,4 +635,44 @@
     testRunner.runScheduledTasks(100);
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Wrong checksum produces fallback request");
   });
+
+  test("State fields", function()
+  {
+    // Always use average download interval
+    randomResult = 0.5;
+
+    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    FilterStorage.addSubscription(subscription);
+
+    server.registerPathHandler("/subscription", function successHandler(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\n! Expires: 2 hours\nfoo\nbar";
+      response.bodyOutputStream.write(result, result.length);
+    });
+
+    let startTime = testRunner.currentTime;
+    testRunner.runScheduledTasks(2);
+
+    equal(subscription.downloadStatus, "synchronize_ok", "downloadStatus after successful download");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastDownload after successful download");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after successful download");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 1.1 * MILLIS_IN_HOUR, "lastCheck after successful download");
+    equal(subscription.errors, 0, "errors after successful download");
+
+    server.registerPathHandler("/subscription", function errorHandler(metadata, response)
+    {
+      response.setStatusLine("1.1", "404", "Not Found");
+    });
+
+    testRunner.runScheduledTasks(2);
+
+    equal(subscription.downloadStatus, "synchronize_connection_error", "downloadStatus after download error");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 2.1 * MILLIS_IN_HOUR, "lastDownload after download error");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after download error");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 3.1 * MILLIS_IN_HOUR, "lastCheck after download error");
+    equal(subscription.errors, 1, "errors after download error");
+  });
 })();

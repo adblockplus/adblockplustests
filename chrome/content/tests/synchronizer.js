@@ -552,6 +552,24 @@
     testRunner.runScheduledTasks(15);
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Redirect followed");
     deepEqual(requests, [0.1, 8.1], "Resulting requests");
+
+    server.registerPathHandler("/redirected", function(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\nfoo\n!Redirect: http://127.0.0.1:1234/subscription\nbar";
+      response.bodyOutputStream.write(result, result.length);
+    })
+
+    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    resetSubscription(subscription);
+    FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
+    FilterStorage.addSubscription(subscription);
+
+    testRunner.runScheduledTasks(2);
+    equal(FilterStorage.subscriptions[0], subscription, "Redirect not followed on redirect loop");
+    equal(subscription.downloadStatus, "synchronize_connection_error", "Download status after redirect loop");
   });
 
   test("Fallback", function()
@@ -565,6 +583,8 @@
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
+    // No valid response from fallback
+
     let requests = [];
     function handler(metadata, response)
     {
@@ -576,6 +596,8 @@
 
     testRunner.runScheduledTasks(100);
     deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Continue trying if the fallback doesn't respond");
+
+    // Fallback giving "Gone" response
 
     resetSubscription(subscription);
     requests = [];
@@ -593,6 +615,8 @@
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop trying if the fallback responds with Gone");
     equal(fallbackParams, "http://127.0.0.1:1234/subscription&0&404", "Fallback arguments");
 
+    // Fallback redirecting to a missing file
+
     subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
@@ -609,6 +633,8 @@
     testRunner.runScheduledTasks(100);
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/subscription", "Ignore invalid redirect from fallback");
     deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Requests not affected by invalid redirect");
+
+    // Fallback redirecting to an existing file
 
     resetSubscription(subscription);
     requests = [];
@@ -629,6 +655,8 @@
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop polling original URL after a valid redirect from fallback");
     deepEqual(redirectedRequests, [48.1, 72.1, 96.1], "Request new URL after a valid redirect from fallback");
 
+    // Checksum mismatch
+
     function handler2(metadata, response)
     {
       response.setStatusLine("1.1", "200", "OK");
@@ -646,6 +674,33 @@
 
     testRunner.runScheduledTasks(100);
     equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Wrong checksum produces fallback request");
+
+    // Redirect loop
+
+    server.registerPathHandler("/subscription", function(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\n! Redirect: http://127.0.0.1:1234/subscription2";
+      response.bodyOutputStream.write(result, result.length);
+    });
+    server.registerPathHandler("/subscription2", function(metadata, response)
+    {
+      response.setStatusLine("1.1", "200", "OK");
+      response.setHeader("Content-Type", "text/plain");
+
+      let result = "[Adblock]\n! Redirect: http://127.0.0.1:1234/subscription";
+      response.bodyOutputStream.write(result, result.length);
+    });
+
+    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    resetSubscription(subscription);
+    FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
+    FilterStorage.addSubscription(subscription);
+
+    testRunner.runScheduledTasks(100);
+    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Fallback can still redirect even after a redirect loop");
   });
 
   test("State fields", function()

@@ -42,7 +42,8 @@
     let changes = [];
     function listener(action, subscription)
     {
-      changes.push(action + " " + subscription.url);
+      if (action.indexOf("subscription.") == 0)
+        changes.push(action + " " + subscription.url);
     }
     FilterNotifier.addListener(listener);
 
@@ -83,7 +84,8 @@
     let changes = [];
     function listener(action, subscription)
     {
-      changes.push(action + " " + subscription.url);
+      if (action.indexOf("subscription.") == 0)
+        changes.push(action + " " + subscription.url);
     }
     FilterNotifier.addListener(listener);
 
@@ -127,7 +129,8 @@
     let changes = [];
     function listener(action, subscription)
     {
-      changes.push(action + " " + subscription.url);
+      if (action.indexOf("subscription.") == 0)
+        changes.push(action + " " + subscription.url);
     }
     FilterNotifier.addListener(listener);
 
@@ -185,7 +188,8 @@
     let changes = [];
     function listener(action, filter)
     {
-      changes.push(action + " " + filter.text);
+      if (action.indexOf("filter.") == 0)
+        changes.push(action + " " + filter.text);
     }
     FilterNotifier.addListener(listener);
 
@@ -258,7 +262,8 @@
     let changes = [];
     function listener(action, filter)
     {
-      changes.push(action + " " + filter.text);
+      if (action.indexOf("filter.") == 0)
+        changes.push(action + " " + filter.text);
     }
     FilterNotifier.addListener(listener);
 
@@ -310,7 +315,8 @@
     let changes = [];
     function listener(action, filter)
     {
-      changes.push(action + " " + filter.text);
+      if (action.indexOf("filter.") == 0)
+        changes.push(action + " " + filter.text);
     }
     FilterNotifier.addListener(listener);
 
@@ -348,7 +354,8 @@
     let changes = [];
     function listener(action, filter)
     {
-      changes.push(action + " " + filter.text);
+      if (action.indexOf("filter.") == 0)
+        changes.push(action + " " + filter.text);
     }
     FilterNotifier.addListener(listener);
 

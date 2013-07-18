@@ -4,150 +4,34 @@
   let server = null;
   let randomResult = 0.5;
 
-  const MILLIS_IN_SECOND = 1000;
-  const MILLIS_IN_MINUTE = 60 * MILLIS_IN_SECOND;
-  const MILLIS_IN_HOUR = 60 * MILLIS_IN_MINUTE;
-  const MILLIS_IN_DAY = 24 * MILLIS_IN_HOUR;
-
   module("Synchronizer", {
-    QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver, Ci.nsISupportsWeakReference]),
-
     setup: function()
     {
       testRunner = this;
 
       prepareFilterComponents.call(this);
       preparePrefs.call(this);
-
-      let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
-      let SynchronizerModule = getModuleGlobal("synchronizer");
-      let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
+      setupVirtualTime.call(this, function(wrapTimer)
+      {
+        let SynchronizerModule = getModuleGlobal("synchronizer");
+        SynchronizerModule.downloader._timer = wrapTimer(SynchronizerModule.downloader._timer);
+      }, "synchronizer", "downloader");
 
       server = new nsHttpServer();
       server.start(1234);
 
-      let currentTime = 100000 * MILLIS_IN_HOUR;
-      let startTime = currentTime;
-      let scheduledTasks = [];
-
-      // Replace Date.now() function
-      this._origNow = SynchronizerGlobal.Date.now;
-      SynchronizerGlobal.Date.now = DownloaderGlobal.Date.now = function() currentTime;
-
       // Replace Math.random() function
+      let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
       this._origRandom = DownloaderGlobal.Math.random;
       DownloaderGlobal.Math.random = function() randomResult;
-
-      // Replace global timer variable
-      let timer = {__proto__: SynchronizerModule.downloader._timer, delay: 0.1 * MILLIS_IN_HOUR};
-      let callback = timer.callback;
-      timer.handler = function() { callback.notify(timer); };
-      timer.nextExecution = currentTime + timer.delay;
-      scheduledTasks.push(timer);
-      SynchronizerModule.downloader._timer.cancel();
-      SynchronizerModule.downloader._timer = timer;
-
-      // Register observer to track outstanding requests
-      this._outstandingRequests = 0;
-      Services.obs.addObserver(this, "http-on-modify-request", true);
-      Services.obs.addObserver(this, "http-on-examine-response", true);
-
-      this.runScheduledTasks = function(maxHours, initial, skip)
-      {
-        if (typeof maxHours != "number")
-          throw new Error("Numerical parameter expected");
-        if (typeof initial != "number")
-          initial = 0;
-        if (typeof skip != "number")
-          skip = 0;
-
-        startTime = currentTime;
-        if (initial >= 0)
-        {
-          this._runScheduledTasks(initial);
-          maxHours -= initial;
-        }
-        if (skip)
-        {
-          this._skipTasks(skip);
-          maxHours -= skip;
-        }
-        this._runScheduledTasks(maxHours);
-      }
-
-      this._runScheduledTasks = function(maxHours)
-      {
-        let endTime = currentTime + maxHours * MILLIS_IN_HOUR;
-        while (true)
-        {
-          let nextTask = null;
-          for each (let task in scheduledTasks)
-          {
-            if (!nextTask || nextTask.nextExecution > task.nextExecution)
-              nextTask = task;
-          }
-          if (!nextTask || nextTask.nextExecution > endTime)
-            break;
-
-          currentTime = nextTask.nextExecution;
-          nextTask.handler();
-
-          // Let all asynchronous actions finish
-          let thread = Services.tm.currentThread;
-          let loopStartTime = Date.now();
-
-          while (this._outstandingRequests > 0 || thread.hasPendingEvents())
-          {
-            thread.processNextEvent(true);
-
-            if (Date.now() - loopStartTime > 5000)
-              throw new Error("Synchronizer stuck downloading subscriptions");
-          }
-
-          if (nextTask.type == Components.interfaces.nsITimer.TYPE_ONE_SHOT)
-            scheduledTasks = scheduledTasks.filter(function(task) task != nextTask);
-          else
-            nextTask.nextExecution = currentTime + nextTask.delay;
-        }
-
-        currentTime = endTime;
-      }
-
-      this._skipTasks = function(hours)
-      {
-        let newTasks = [];
-        currentTime += hours * MILLIS_IN_HOUR;
-        for each (let task in scheduledTasks)
-        {
-          if (task.nextExecution >= currentTime)
-            newTasks.push(task);
-          else if (task.type != Components.interfaces.nsITimer.TYPE_ONE_SHOT)
-          {
-            task.nextExecution = currentTime;
-            newTasks.push(task);
-          }
-        }
-        scheduledTasks = newTasks;
-      }
-
-      this.getTimeOffset = function() (currentTime - startTime) / MILLIS_IN_HOUR;
-
-      this.__defineGetter__("currentTime", function() currentTime);
-    },
-
-    observe: function(subject, topic, data)
-    {
-      let orig = this._outstandingRequests;
-      if (topic == "http-on-modify-request")
-        this._outstandingRequests++;
-      else if (topic == "http-on-examine-response")
-        this._outstandingRequests--;
+      randomResult = 0.5;
     },
 
     teardown: function()
     {
       restoreFilterComponents.call(this);
       restorePrefs.call(this);
+      restoreVirtualTime.call(this);
 
       stop();
       server.stop(function()
@@ -156,19 +40,9 @@
         start();
       });
 
-      if (this._origNow)
-      {
-        let SynchronizerGlobal = Cu.getGlobalForObject(Synchronizer);
-        let SynchronizerModule = getModuleGlobal("synchronizer");
-        let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
-        SynchronizerGlobal.Date.now = DownloaderGlobal.Date.now = this._origNow;
-        delete this._origNow;
-      }
-
       if (this._origRandom)
       {
-        let SynchronizerModule = getModuleGlobal("synchronizer");
-        let DownloaderGlobal = Cu.getGlobalForObject(SynchronizerModule.downloader);
+        let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
         DownloaderGlobal.Math.random = this._origRandom;
         delete this._origRandom;
       }
@@ -192,9 +66,6 @@
 
   test("Downloads of one subscription", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -222,9 +93,6 @@
 
   test("Downloads of two subscriptions", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription1 = Subscription.fromURL("http://127.0.0.1:1234/subscription1");
     FilterStorage.addSubscription(subscription1);
 
@@ -262,9 +130,6 @@
 
   test("Download result, various subscription headers", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let test;
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
@@ -434,9 +299,6 @@
 
   test("Checksum verification", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -475,9 +337,6 @@
 
   test("Special comments", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -514,9 +373,6 @@
 
   test("Redirects", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 
@@ -574,9 +430,6 @@
 
   test("Fallback", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     Prefs.subscriptions_fallbackerrors = 3;
     Prefs.subscriptions_fallbackurl = "http://127.0.0.1:1234/fallback?%SUBSCRIPTION%&%CHANNELSTATUS%&%RESPONSESTATUS%";
 
@@ -705,9 +558,6 @@
 
   test("State fields", function()
   {
-    // Always use average download interval
-    randomResult = 0.5;
-
     let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
     FilterStorage.addSubscription(subscription);
 

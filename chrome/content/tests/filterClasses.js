@@ -89,7 +89,7 @@
     }
     if (type == "whitelist" || type == "filterlist")
     {
-      addProperty("contentType", 0x7FFFFFFF & ~(RegExpFilter.typeMap.ELEMHIDE | RegExpFilter.typeMap.DONOTTRACK | RegExpFilter.typeMap.POPUP));
+      addProperty("contentType", 0x7FFFFFFF & ~(RegExpFilter.typeMap.ELEMHIDE | RegExpFilter.typeMap.POPUP));
       addProperty("matchCase", "false");
       addProperty("thirdParty", "null");
       addProperty("domains", "");
@@ -193,7 +193,7 @@
   });
 
   let t = RegExpFilter.typeMap;
-  let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DONOTTRACK | t.DOCUMENT | t.POPUP);
+  let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DOCUMENT | t.POPUP);
 
   test("Special characters", function()
   {
@@ -229,9 +229,13 @@
     compareFilter("@@bla$~script,~other,elemhide", ["type=whitelist", "text=@@bla$~script,~other,elemhide", "regexp=bla", "contentType=" +  (defaultTypes & ~(t.SCRIPT | t.OTHER) | t.ELEMHIDE)]);
     compareFilter("@@bla$~script,~other,~elemhide", ["type=whitelist", "text=@@bla$~script,~other,~elemhide", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER))]);
     compareFilter("@@bla$elemhide", ["type=whitelist", "text=@@bla$elemhide", "regexp=bla", "contentType=" + t.ELEMHIDE]);
-    compareFilter("@@bla$~script,~other,donottrack", ["type=whitelist", "text=@@bla$~script,~other,donottrack", "regexp=bla", "contentType=" +  (defaultTypes & ~( t.SCRIPT | t.OTHER) | t.DONOTTRACK)]);
-    compareFilter("@@bla$~script,~other,~donottrack", ["type=whitelist", "text=@@bla$~script,~other,~donottrack", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER))]);
-    compareFilter("@@bla$donottrack", ["type=whitelist", "text=@@bla$donottrack", "regexp=bla", "contentType=" + t.DONOTTRACK]);
+
+    compareFilter("@@bla$~script,~other,donottrack", ["type=invalid", "text=@@bla$~script,~other,donottrack", "hasReason"]);
+    compareFilter("@@bla$~script,~other,~donottrack", ["type=invalid", "text=@@bla$~script,~other,~donottrack", "hasReason"]);
+    compareFilter("@@bla$donottrack", ["type=invalid", "text=@@bla$donottrack", "hasReason"]);
+    compareFilter("@@bla$foobar", ["type=invalid", "text=@@bla$foobar", "hasReason"]);
+    compareFilter("@@bla$image,foobar", ["type=invalid", "text=@@bla$image,foobar", "hasReason"]);
+    compareFilter("@@bla$foobar,image", ["type=invalid", "text=@@bla$foobar,image", "hasReason"]);
   });
 
   test("Element hiding rules", function()

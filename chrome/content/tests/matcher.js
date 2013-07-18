@@ -92,8 +92,6 @@
     compareKeywords("+asdf-1234=", ["asdf", "1234"]);
     compareKeywords("/123^ad2&ad&", ["123", "ad2"]);
     compareKeywords("/123^ad2&ad$script,domain=example.com", ["123", "ad2"]);
-    compareKeywords("^foobar^$donottrack", ["foobar"]);
-    compareKeywords("*$donottrack", []);
   });
 
   test("Filter matching", function()
@@ -154,12 +152,6 @@
     checkMatch(["abc$domain=foo.com", "cba$domain=bar.com", "ccc$domain=~foo.com|~bar.com"], "http://abc/def", "IMAGE", "bar.com", false, null);
     checkMatch(["abc$domain=foo.com", "cba$domain=bar.com", "ccc$domain=~foo.com|~bar.com"], "http://abc/def", "IMAGE", "baz.com", false, null);
     checkMatch(["abc$domain=foo.com", "cba$domain=bar.com", "ccc$domain=~foo.com|~bar.com"], "http://ccc/def", "IMAGE", "baz.com", false, "ccc$domain=~foo.com|~bar.com");
-    checkMatch(["*$image"], "http://ccc/def", "DONOTTRACK", "example.com", false, null);
-    checkMatch(["*$donottrack"], "http://ccc/def", "DONOTTRACK", "example.com", false, "*$donottrack");
-    checkMatch(["*$donottrack"], "http://ccc/def", "DONOTTRACK", "example.com", false, "*$donottrack");
-    checkMatch(["*$donottrack"], "http://ccc/def", "IMAGE", "example.com", false, null);
-    checkMatch(["*$donottrack,third-party"], "http://ccc/def", "DONOTTRACK", "example.com", true, "*$donottrack,third-party");
-    checkMatch(["*$donottrack,third-party"], "http://ccc/def", "DONOTTRACK", "example.com", false, null);
   });
 
   test("Result cache checks", function()

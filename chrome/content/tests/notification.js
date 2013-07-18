@@ -1,5 +1,3 @@
-// TODO: Use let and other FF features where possible
-
 (function()
 {
   let originalApplication;

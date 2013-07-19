@@ -91,12 +91,12 @@
     return JSON.parse(JSON.stringify(object));
   }
 
-  test("No data", 1, function()
+  test("No data", function()
   {
     equal(Notification.getNextToShow(), null, "null should be returned if there is no data");
   });
 
-  test("Single notification", 2, function()
+  test("Single notification", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -111,7 +111,7 @@
     equal(Notification.getNextToShow(), null, "Informational notifications aren't shown more than once");
   });
 
-  test("Information and critical", 2, function()
+  test("Information and critical", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -131,7 +131,7 @@
     deepEqual(Notification.getNextToShow(), critical, "Critical notifications can be shown multiple times");
   });
 
-  test("No severity", 2, function()
+  test("No severity", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -145,7 +145,7 @@
     equal(Notification.getNextToShow(), null, "Notification is treated as severity information");
   });
 
-  test("Different platforms", 2, function()
+  test("Different platforms", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -167,7 +167,7 @@
     deepEqual(Notification.getNextToShow(), null, "Critical notification still ignored even if no other notifications available");
   });
 
-  test("Min version", 2, function()
+  test("Min version", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -189,7 +189,7 @@
     deepEqual(Notification.getNextToShow(), null, "Critical notification still ignored even if no other notifications available");
   });
 
-  test("Max version", 2, function()
+  test("Max version", function()
   {
     let information = fixConstructors({
       id: 1,

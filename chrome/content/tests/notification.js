@@ -99,7 +99,7 @@
   test("Single notification", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       severity: "information",
       message: {en: "Information"}
     });
@@ -114,12 +114,12 @@
   test("Information and critical", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       severity: "information",
       message: {en: "Information"}
     });
     let critical = fixConstructors({
-      timestamp: 2,
+      id: 2,
       severity: "critical",
       message: {en: "Critical"}
     });
@@ -134,7 +134,7 @@
   test("No severity", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       message: {en: "Information"}
     });
 
@@ -148,13 +148,13 @@
   test("Different platforms", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       severity: "information",
       message: {en: "Information"},
       platforms: ["chrome", "firefox"]
     });
     let critical = fixConstructors({
-      timestamp: 2,
+      id: 2,
       severity: "critical",
       message: {en: "Critical"},
       platforms: ["firefox"]
@@ -170,13 +170,13 @@
   test("Min version", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       severity: "information",
       message: {en: "Information"},
       minVersion: "1.4"
     });
     let critical = fixConstructors({
-      timestamp: 2,
+      id: 2,
       severity: "critical",
       message: {en: "Critical"},
       minVersion: "1.5"
@@ -192,13 +192,13 @@
   test("Max version", 2, function()
   {
     let information = fixConstructors({
-      timestamp: 1,
+      id: 1,
       severity: "information",
       message: {en: "Information"},
       maxVersion: "1.5"
     });
     let critical = fixConstructors({
-      timestamp: 2,
+      id: 2,
       severity: "critical",
       message: {en: "Critical"},
       maxVersion: "1.4"

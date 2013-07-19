@@ -4,8 +4,7 @@
   let server = null;
   let randomResult = 0.5;
 
-  let originalApplication;
-  let originalAddonVersion;
+  let originalInfo;
   let info = require("info");
 
   module("Notification",
@@ -24,10 +23,16 @@
       server = new nsHttpServer();
       server.start(1234);
 
-      originalApplication = info.application;
-      info.application = "chrome";
-      originalAddonVersion = info.addonVersion;
+      originalInfo = {};
+      for (let key in info)
+        originalInfo[key] = info[key];
+
+      info.addonName = "adblockpluschrome";
       info.addonVersion = "1.4.1";
+      info.application = "chrome";
+      info.applicationVersion = "27.0";
+      info.platform = "chromium";
+      info.platformVersion = "12.0";
 
       Prefs.notificationurl = "http://127.0.0.1:1234/notification.json";
       Prefs.notificationdata = {};
@@ -51,8 +56,8 @@
         start();
       });
 
-      info.application = originalApplication;
-      info.addonVersion = originalAddonVersion;
+      for (let key in originalInfo)
+        info[key] = originalInfo[key];
 
       if (this._origRandom)
       {
@@ -145,69 +150,113 @@
     equal(Notification.getNextToShow(), null, "Notification is treated as severity information");
   });
 
-  test("Different platforms", function()
+  test("Target selection", function()
   {
-    let information = fixConstructors({
-      id: 1,
-      severity: "information",
-      message: {en: "Information"},
-      platforms: ["chrome", "firefox"]
-    });
-    let critical = fixConstructors({
-      id: 2,
-      severity: "critical",
-      message: {en: "Critical"},
-      platforms: ["firefox"]
-    });
+    let targets = [
+      ["extension", "adblockpluschrome", true],
+      ["extension", "adblockplus", false],
+      ["extension", "adblockpluschrome2", false],
+      ["extensionMinVersion", "1.4", true],
+      ["extensionMinVersion", "1.4.1", true],
+      ["extensionMinVersion", "1.5", false],
+      ["extensionMaxVersion", "1.5", true],
+      ["extensionMaxVersion", "1.4.1", true],
+      ["extensionMaxVersion", "1.4.*", true],
+      ["extensionMaxVersion", "1.4", false],
+      ["application", "chrome", true],
+      ["application", "firefox", false],
+      ["applicationMinVersion", "27.0", true],
+      ["applicationMinVersion", "27", true],
+      ["applicationMinVersion", "26", true],
+      ["applicationMinVersion", "28", false],
+      ["applicationMinVersion", "27.1", false],
+      ["applicationMaxVersion", "27.0", true],
+      ["applicationMaxVersion", "27", true],
+      ["applicationMaxVersion", "28", true],
+      ["applicationMaxVersion", "26", false],
+      ["platform", "chromium", true],
+      ["platform", "gecko", false],
+      ["platformMinVersion", "12.0", true],
+      ["platformMinVersion", "12", true],
+      ["platformMinVersion", "11", true],
+      ["platformMinVersion", "13", false],
+      ["platformMinVersion", "12.1", false],
+      ["platformMaxVersion", "12.0", true],
+      ["platformMaxVersion", "12", true],
+      ["platformMaxVersion", "13", true],
+      ["platformMaxVersion", "11", false],
+    ];
 
-    registerHandler([information, critical]);
-    testRunner.runScheduledTasks(1);
+    for each (let [propName, value, result] in targets)
+    {
+      let targetInfo = {};
+      targetInfo[propName] = value;
 
-    deepEqual(Notification.getNextToShow(), information, "Critical notification is ignored if platform doesn't match");
-    deepEqual(Notification.getNextToShow(), null, "Critical notification still ignored even if no other notifications available");
-  });
+      let information = fixConstructors({
+        id: 1,
+        severity: "information",
+        message: {en: "Information"},
+        targets: [targetInfo]
+      });
 
-  test("Min version", function()
-  {
-    let information = fixConstructors({
-      id: 1,
-      severity: "information",
-      message: {en: "Information"},
-      minVersion: "1.4"
-    });
-    let critical = fixConstructors({
-      id: 2,
-      severity: "critical",
-      message: {en: "Critical"},
-      minVersion: "1.5"
-    });
+      Prefs.notificationdata = {};
+      registerHandler([information]);
+      testRunner.runScheduledTasks(1);
 
-    registerHandler([information, critical]);
-    testRunner.runScheduledTasks(1);
+      let expected = (result ? information : null);
+      deepEqual(Notification.getNextToShow(), expected, "Selected notification for " + JSON.stringify(information.targets));
+      deepEqual(Notification.getNextToShow(), null, "No notification on second call");
+    }
 
-    deepEqual(Notification.getNextToShow(), information, "Critical notification is ignored if minVersion doesn't match");
-    deepEqual(Notification.getNextToShow(), null, "Critical notification still ignored even if no other notifications available");
-  });
+    function allPairs(array)
+    {
+      var pairs = [];
+      for (var i = 0; i < array.length - 1; i++)
+        for (var j = i + 1; j < array.length; j++)
+          pairs.push([array[i], array[j]]);
+      return pairs;
+    }
+    for each (let [[propName1, value1, result1], [propName2, value2, result2]] in allPairs(targets))
+    {
+      let targetInfo1 = {};
+      targetInfo1[propName1] = value1;
+      let targetInfo2 = {};
+      targetInfo2[propName2] = value2;
 
-  test("Max version", function()
-  {
-    let information = fixConstructors({
-      id: 1,
-      severity: "information",
-      message: {en: "Information"},
-      maxVersion: "1.5"
-    });
-    let critical = fixConstructors({
-      id: 2,
-      severity: "critical",
-      message: {en: "Critical"},
-      maxVersion: "1.4"
-    });
+      let information = fixConstructors({
+        id: 1,
+        severity: "information",
+        message: {en: "Information"},
+        targets: [targetInfo1, targetInfo2]
+      });
 
-    registerHandler([information, critical]);
-    testRunner.runScheduledTasks(1);
+      Prefs.notificationdata = {};
+      registerHandler([information]);
+      testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), information, "Critical notification is ignored if maxVersion doesn't match");
-    deepEqual(Notification.getNextToShow(), null, "Critical notification still ignored even if no other notifications available");
+      let expected = (result1 || result2 ? information : null)
+      deepEqual(Notification.getNextToShow(), expected, "Selected notification for " + JSON.stringify(information.targets));
+      deepEqual(Notification.getNextToShow(), null, "No notification on second call");
+
+      information = fixConstructors({
+        id: 1,
+        severity: "information",
+        message: {en: "Information"},
+        targets: [targetInfo1]
+      });
+      let critical = fixConstructors({
+        id: 2,
+        severity: "critical",
+        message: {en: "Critical"},
+        targets: [targetInfo2]
+      });
+
+      Prefs.notificationdata = {};
+      registerHandler([information, critical]);
+      testRunner.runScheduledTasks(1);
+
+      expected = (result2 ? critical : (result1 ? information : null));
+      deepEqual(Notification.getNextToShow(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
+    }
   });
 })();

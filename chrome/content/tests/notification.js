@@ -7,7 +7,7 @@
   let originalInfo;
   let info = require("info");
 
-  module("Notification",
+  module("Notification handling",
   {
     setup: function()
     {
@@ -258,5 +258,32 @@
       expected = (result2 ? critical : (result1 ? information : null));
       deepEqual(Notification.getNextToShow(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
     }
+  });
+
+  module("Notification localization");
+
+  test("Language only", function()
+  {
+    let notification = {message: {en: "en"}};
+    let texts = Notification.getLocalizedTexts(notification, "en");
+    equal(texts.message, "en");
+    texts = Notification.getLocalizedTexts(notification, "en-GB");
+    equal(texts.message, "en");
+  });
+
+  test("Language and country", function()
+  {
+    let notification = {message: {en: "en", "en-GB": "en-GB"}};
+    let texts = Notification.getLocalizedTexts(notification, "en-GB");
+    equal(texts.message, "en-GB");
+    texts = Notification.getLocalizedTexts(notification, "en");
+    equal(texts.message, "en");
+  });
+
+  test("Missing translation", function()
+  {
+    let notification = {message: {en: "en"}};
+    let texts = Notification.getLocalizedTexts(notification, "fr");
+    equal(texts.message, "en");
   });
 })();

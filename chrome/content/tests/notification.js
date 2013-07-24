@@ -106,7 +106,7 @@
     let information = fixConstructors({
       id: 1,
       severity: "information",
-      message: {en: "Information"}
+      message: {"en-US": "Information"}
     });
 
     registerHandler([information]);
@@ -121,12 +121,12 @@
     let information = fixConstructors({
       id: 1,
       severity: "information",
-      message: {en: "Information"}
+      message: {"en-US": "Information"}
     });
     let critical = fixConstructors({
       id: 2,
       severity: "critical",
-      message: {en: "Critical"}
+      message: {"en-US": "Critical"}
     });
 
     registerHandler([information, critical]);
@@ -140,7 +140,7 @@
   {
     let information = fixConstructors({
       id: 1,
-      message: {en: "Information"}
+      message: {"en-US": "Information"}
     });
 
     registerHandler([information]);
@@ -195,7 +195,7 @@
       let information = fixConstructors({
         id: 1,
         severity: "information",
-        message: {en: "Information"},
+        message: {"en-US": "Information"},
         targets: [targetInfo]
       });
 
@@ -226,7 +226,7 @@
       let information = fixConstructors({
         id: 1,
         severity: "information",
-        message: {en: "Information"},
+        message: {"en-US": "Information"},
         targets: [targetInfo1, targetInfo2]
       });
 
@@ -241,13 +241,13 @@
       information = fixConstructors({
         id: 1,
         severity: "information",
-        message: {en: "Information"},
+        message: {"en-US": "Information"},
         targets: [targetInfo1]
       });
       let critical = fixConstructors({
         id: 2,
         severity: "critical",
-        message: {en: "Critical"},
+        message: {"en-US": "Critical"},
         targets: [targetInfo2]
       });
 
@@ -264,26 +264,26 @@
 
   test("Language only", function()
   {
-    let notification = {message: {en: "en"}};
-    let texts = Notification.getLocalizedTexts(notification, "en");
-    equal(texts.message, "en");
-    texts = Notification.getLocalizedTexts(notification, "en-GB");
-    equal(texts.message, "en");
+    let notification = {message: {fr: "fr"}};
+    let texts = Notification.getLocalizedTexts(notification, "fr");
+    equal(texts.message, "fr");
+    texts = Notification.getLocalizedTexts(notification, "fr-CA");
+    equal(texts.message, "fr");
   });
 
   test("Language and country", function()
   {
-    let notification = {message: {en: "en", "en-GB": "en-GB"}};
-    let texts = Notification.getLocalizedTexts(notification, "en-GB");
-    equal(texts.message, "en-GB");
-    texts = Notification.getLocalizedTexts(notification, "en");
-    equal(texts.message, "en");
+    let notification = {message: {fr: "fr", "fr-CA": "fr-CA"}};
+    let texts = Notification.getLocalizedTexts(notification, "fr-CA");
+    equal(texts.message, "fr-CA");
+    texts = Notification.getLocalizedTexts(notification, "fr");
+    equal(texts.message, "fr");
   });
 
   test("Missing translation", function()
   {
-    let notification = {message: {en: "en"}};
+    let notification = {message: {"en-US": "en-US"}};
     let texts = Notification.getLocalizedTexts(notification, "fr");
-    equal(texts.message, "en");
+    equal(texts.message, "en-US");
   });
 })();

@@ -1,7 +1,7 @@
 (function()
 {
   let testRunner = null;
-  let server = null;
+  let requestHandlers = null;
   let randomResult = 0.5;
 
   module("Synchronizer", {
@@ -16,9 +16,7 @@
         let SynchronizerModule = getModuleGlobal("synchronizer");
         SynchronizerModule.downloader._timer = wrapTimer(SynchronizerModule.downloader._timer);
       }, "synchronizer", "downloader");
-
-      server = new nsHttpServer();
-      server.start(1234);
+      setupVirtualXMLHttp.call(this, "synchronizer", "downloader");
 
       // Replace Math.random() function
       let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
@@ -32,13 +30,7 @@
       restoreFilterComponents.call(this);
       restorePrefs.call(this);
       restoreVirtualTime.call(this);
-
-      stop();
-      server.stop(function()
-      {
-        server = null;
-        start();
-      });
+      restoreVirtualXMLHttp.call(this);
 
       if (this._origRandom)
       {
@@ -66,22 +58,15 @@
 
   test("Downloads of one subscription", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     let requests = [];
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
       requests.push([testRunner.getTimeOffset(), metadata.method, metadata.path]);
-
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n! ExPiREs: 1day\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 200, "[Adblock]\n! ExPiREs: 1day\nfoo\nbar"];
+    });
 
     testRunner.runScheduledTasks(50);
     deepEqual(requests, [
@@ -93,29 +78,24 @@
 
   test("Downloads of two subscriptions", function()
   {
-    let subscription1 = Subscription.fromURL("http://127.0.0.1:1234/subscription1");
+    let subscription1 = Subscription.fromURL("http://example.com/subscription1");
     FilterStorage.addSubscription(subscription1);
 
-    let subscription2 = Subscription.fromURL("http://127.0.0.1:1234/subscription2");
+    let subscription2 = Subscription.fromURL("http://example.com/subscription2");
     subscription2.expires =
       subscription2.softExpiration =
       (testRunner.currentTime + 2 * MILLIS_IN_HOUR) / MILLIS_IN_SECOND;
     FilterStorage.addSubscription(subscription2);
 
     let requests = [];
-    function handler(metadata, response)
+    function handler(metadata)
     {
       requests.push([testRunner.getTimeOffset(), metadata.method, metadata.path]);
-
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n! ExPiREs: 1day\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\n! ExPiREs: 1day\nfoo\nbar"];
     }
 
-    server.registerPathHandler("/subscription1", handler);
-    server.registerPathHandler("/subscription2", handler);
+    testRunner.registerHandler("/subscription1", handler);
+    testRunner.registerHandler("/subscription2", handler);
 
     testRunner.runScheduledTasks(55);
     deepEqual(requests, [
@@ -131,20 +111,13 @@
   test("Download result, various subscription headers", function()
   {
     let test;
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-
-      // Wrong content type shouldn't matter
-      response.setHeader("Content-Type", "text/xml");
-
-      let result = test.header + "\n!Expires: 8 hours\nfoo\n!bar\n\n@@bas\n#bam";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 200, test.header + "\n!Expires: 8 hours\nfoo\n!bar\n\n@@bas\n#bam"];
+    });
 
     let tests = [
       {header: "[Adblock]", downloadStatus: "synchronize_ok", requiredVersion: null},
@@ -183,17 +156,15 @@
   {
     Prefs.subscriptions_autoupdate = false;
 
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     let requests = 0;
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
       requests++;
       throw new Error("Unexpected request");
-    }
-
-    server.registerPathHandler("/subscription", handler);
+    });
 
     testRunner.runScheduledTasks(50);
     equal(requests, 0, "Request count");
@@ -201,22 +172,16 @@
 
   test("Expiration time", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     let test;
     let requests = [];
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
       requests.push(testRunner.getTimeOffset());
-
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\nfoo\n!Expires: " + test.expiration + "\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 200, "[Adblock]\nfoo\n!Expires: " + test.expiration + "\nbar"];
+    });
 
     let tests = [
       {
@@ -299,7 +264,7 @@
 
   test("Checksum verification", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     let testName, subscriptionBody, expectedResult;
@@ -318,14 +283,10 @@
       ["Special comments are part of the checksum", "[Adblock]\n! Checksum: e/JCmqXny6Fn24b7JHsq/A\n! Expires: 1\nfoo\nbar\n", false],
     ];
 
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      response.bodyOutputStream.write(subscriptionBody, subscriptionBody.length);
-    }
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 200, subscriptionBody];
+    });
 
     for each ([testName, subscriptionBody, expectedResult] in tests)
     {
@@ -337,7 +298,7 @@
 
   test("Special comments", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     let comment, check;
@@ -352,15 +313,10 @@
       ["! Version: 1234", function() equal(subscription.version, 1234, "Version comment")]
     ];
 
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n" + comment + "\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 200, "[Adblock]\n" + comment + "\nfoo\nbar"];
+    });
 
     for each([comment, check] in tests)
     {
@@ -373,18 +329,13 @@
 
   test("Redirects", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
-    function redirect_handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\nfoo\n!Redirect: http://127.0.0.1:1234/redirected\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/subscription", redirect_handler);
+      return [Cr.NS_OK, 200, "[Adblock]\nfoo\n!Redirect: http://example.com/redirected\nbar"];
+    });
 
     testRunner.runScheduledTasks(30);
     equal(FilterStorage.subscriptions[0], subscription, "Invalid redirect ignored");
@@ -392,33 +343,23 @@
     equal(subscription.errors, 2, "Number of download errors");
 
     let requests = [];
-    function handler(metadata, response)
+    testRunner.registerHandler("/redirected", function(metadata)
     {
       requests.push(testRunner.getTimeOffset());
-
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\nfoo\n! Expires: 8 hours\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/redirected", handler);
+      return [Cr.NS_OK, 200, "[Adblock]\nfoo\n! Expires: 8 hours\nbar"];
+    });
 
     resetSubscription(subscription);
     testRunner.runScheduledTasks(15);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Redirect followed");
+    equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Redirect followed");
     deepEqual(requests, [0.1, 8.1], "Resulting requests");
 
-    server.registerPathHandler("/redirected", function(metadata, response)
+    testRunner.registerHandler("/redirected", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\nfoo\n!Redirect: http://127.0.0.1:1234/subscription\nbar";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\nfoo\n!Redirect: http://example.com/subscription\nbar"];
     })
 
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);
@@ -431,21 +372,19 @@
   test("Fallback", function()
   {
     Prefs.subscriptions_fallbackerrors = 3;
-    Prefs.subscriptions_fallbackurl = "http://127.0.0.1:1234/fallback?%SUBSCRIPTION%&%CHANNELSTATUS%&%RESPONSESTATUS%";
+    Prefs.subscriptions_fallbackurl = "http://example.com/fallback?%SUBSCRIPTION%&%CHANNELSTATUS%&%RESPONSESTATUS%";
 
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
     // No valid response from fallback
 
     let requests = [];
-    function handler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
       requests.push(testRunner.getTimeOffset());
-
-      response.setStatusLine("1.1", "404", "Not found");
-    }
-    server.registerPathHandler("/subscription", handler);
+      return [Cr.NS_OK, 404, ""];
+    });
 
     testRunner.runScheduledTasks(100);
     deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Continue trying if the fallback doesn't respond");
@@ -455,36 +394,30 @@
     resetSubscription(subscription);
     requests = [];
     fallbackParams = null;
-    server.registerPathHandler("/fallback", function(metadata, response)
+    testRunner.registerHandler("/fallback", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
       fallbackParams = decodeURIComponent(metadata.queryString);
-
-      let result = "410 Gone";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "410 Gone"];
     });
 
     testRunner.runScheduledTasks(100);
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop trying if the fallback responds with Gone");
-    equal(fallbackParams, "http://127.0.0.1:1234/subscription&0&404", "Fallback arguments");
+    equal(fallbackParams, "http://example.com/subscription&0&404", "Fallback arguments");
 
     // Fallback redirecting to a missing file
 
-    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    subscription = Subscription.fromURL("http://example.com/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);
     requests = [];
 
-    server.registerPathHandler("/fallback", function(metadata, response)
+    testRunner.registerHandler("/fallback", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-
-      let result = "301 http://127.0.0.1:1234/redirected";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "301 http://example.com/redirected"];
     });
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/subscription", "Ignore invalid redirect from fallback");
+    equal(FilterStorage.subscriptions[0].url, "http://example.com/subscription", "Ignore invalid redirect from fallback");
     deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Requests not affected by invalid redirect");
 
     // Fallback redirecting to an existing file
@@ -492,82 +425,60 @@
     resetSubscription(subscription);
     requests = [];
     let redirectedRequests = [];
-    server.registerPathHandler("/redirected", function(metadata, response)
+    testRunner.registerHandler("/redirected", function(metadata)
     {
       redirectedRequests.push(testRunner.getTimeOffset());
-
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n!Expires: 1day\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\n!Expires: 1day\nfoo\nbar"];
     });
 
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Valid redirect from fallback is followed");
+    equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Valid redirect from fallback is followed");
     deepEqual(requests, [0.1, 24.1, 48.1], "Stop polling original URL after a valid redirect from fallback");
     deepEqual(redirectedRequests, [48.1, 72.1, 96.1], "Request new URL after a valid redirect from fallback");
 
     // Checksum mismatch
 
-    function handler2(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
+      return [Cr.NS_OK, 200, "[Adblock]\n! Checksum: wrong\nfoo\nbar"];
+    });
 
-      let result = "[Adblock]\n! Checksum: wrong\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
-    }
-    server.registerPathHandler("/subscription", handler2);
-
-    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    subscription = Subscription.fromURL("http://example.com/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);
 
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Wrong checksum produces fallback request");
+    equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Wrong checksum produces fallback request");
 
     // Redirect loop
 
-    server.registerPathHandler("/subscription", function(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n! Redirect: http://127.0.0.1:1234/subscription2";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\n! Redirect: http://example.com/subscription2"];
     });
-    server.registerPathHandler("/subscription2", function(metadata, response)
+    testRunner.registerHandler("/subscription2", function(metadata, response)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n! Redirect: http://127.0.0.1:1234/subscription";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\n! Redirect: http://example.com/subscription"];
     });
 
-    subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    subscription = Subscription.fromURL("http://example.com/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);
 
     testRunner.runScheduledTasks(100);
-    equal(FilterStorage.subscriptions[0].url, "http://127.0.0.1:1234/redirected", "Fallback can still redirect even after a redirect loop");
+    equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Fallback can still redirect even after a redirect loop");
   });
 
   test("State fields", function()
   {
-    let subscription = Subscription.fromURL("http://127.0.0.1:1234/subscription");
+    let subscription = Subscription.fromURL("http://example.com/subscription");
     FilterStorage.addSubscription(subscription);
 
-    server.registerPathHandler("/subscription", function successHandler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "text/plain");
-
-      let result = "[Adblock]\n! Expires: 2 hours\nfoo\nbar";
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, "[Adblock]\n! Expires: 2 hours\nfoo\nbar"];
     });
 
     let startTime = testRunner.currentTime;
@@ -579,17 +490,30 @@
     equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 1.1 * MILLIS_IN_HOUR, "lastCheck after successful download");
     equal(subscription.errors, 0, "errors after successful download");
 
-    server.registerPathHandler("/subscription", function errorHandler(metadata, response)
+    testRunner.registerHandler("/subscription", function(metadata)
     {
-      response.setStatusLine("1.1", "404", "Not Found");
+      return [Cr.NS_ERROR_FAILURE, 0, ""];
     });
 
     testRunner.runScheduledTasks(2);
 
+    equal(subscription.downloadStatus, "synchronize_connection_error", "downloadStatus after connection error");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 2.1 * MILLIS_IN_HOUR, "lastDownload after connection error");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after connection error");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 3.1 * MILLIS_IN_HOUR, "lastCheck after connection error");
+    equal(subscription.errors, 1, "errors after connection error");
+
+    testRunner.registerHandler("/subscription", function(metadata)
+    {
+      return [Cr.NS_OK, 404, ""];
+    });
+
+    testRunner.runScheduledTasks(24);
+
     equal(subscription.downloadStatus, "synchronize_connection_error", "downloadStatus after download error");
-    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 2.1 * MILLIS_IN_HOUR, "lastDownload after download error");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 26.1 * MILLIS_IN_HOUR, "lastDownload after download error");
     equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after download error");
-    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 3.1 * MILLIS_IN_HOUR, "lastCheck after download error");
-    equal(subscription.errors, 1, "errors after download error");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 27.1 * MILLIS_IN_HOUR, "lastCheck after download error");
+    equal(subscription.errors, 2, "errors after download error");
   });
 })();

@@ -307,6 +307,153 @@ function restoreVirtualTime()
   Services.obs.removeObserver(this, "http-on-examine-response", true);
 }
 
+function setupVirtualXMLHttp()
+{
+  let host = "http://example.com";
+  let requestHandlers = {};
+
+  let XMLHttpRequest = function()
+  {
+    this._loadHandlers = [];
+    this._errorHandlers = [];
+  };
+  XMLHttpRequest.prototype = {
+    _path: null,
+    _data: null,
+    _queryString: null,
+    _loadHandlers: null,
+    _errorHandlers: null,
+    status: 0,
+    readyState: 0,
+    responseText: null,
+
+    addEventListener: function(eventName, handler, capture)
+    {
+      let list;
+      if (eventName == "load")
+        list = this._loadHandlers;
+      else if (eventName == "error")
+        list = this._errorHandlers;
+      else
+        throw new Error("Event type " + eventName + " not supported");
+
+      if (list.indexOf(handler) < 0)
+        list.push(handler);
+    },
+
+    removeEventListener: function(eventName, handler, capture)
+    {
+      let list;
+      if (eventName == "load")
+        list = this._loadHandlers;
+      else if (eventName == "error")
+        list = this._errorHandlers;
+      else
+        throw new Error("Event type " + eventName + " not supported");
+
+      let index = list.indexOf(handler);
+      if (index >= 0)
+        list.splice(index, 1);
+    },
+
+    open: function(method, url, async, user, password)
+    {
+      if (method != "GET")
+        throw new Error("Only GET requests are currently supported");
+      if (typeof async != "undefined" && !async)
+        throw new Error("Sync requests are not supported");
+      if (typeof user != "undefined" || typeof password != "undefined")
+        throw new Error("User authentification is not supported");
+
+      let match = /^data:[^,]+,/.exec(url);
+      if (match)
+      {
+        this._data = decodeURIComponent(url.substr(match[0].length));
+        return;
+      }
+
+      if (url.substr(0, host.length) != host)
+        throw new Error("Unexpected URL: " + url + " (URL starting with " + host + "expected)");
+
+      this._path = url.substr(host.length);
+
+      let queryIndex = this._path.indexOf("?");
+      this._queryString = "";
+      if (queryIndex >= 0)
+      {
+        this._queryString = this._path.substr(queryIndex + 1);
+        this._path = this._path.substr(0, queryIndex);
+      }
+    },
+
+    send: function(data)
+    {
+      if (!this._data && !this._path)
+        throw new Error("No request path set");
+      if (typeof data != "undefined" && data)
+        throw new Error("Sending data to server is not supported");
+
+      Utils.runAsync(function()
+      {
+        let result = [Cr.NS_OK, 404, ""];
+        if (this._data)
+          result = [Cr.NS_OK, 0, this._data];
+        else if (this._path in requestHandlers)
+          result = requestHandlers[this._path]({method: "GET", path: this._path, queryString: this._queryString});
+        [this.channel.status, this.channel.responseStatus, this.responseText] = result;
+        this.status = this.channel.responseStatus;
+
+        let eventName = (this.channel.status == Cr.NS_OK ? "load" : "error");
+        let event = {type: eventName};
+        for each (let handler in this["_" + eventName + "Handlers"])
+          handler.call(this, event);
+      }.bind(this));
+    },
+
+    overrideMimeType: function(mime)
+    {
+    },
+
+    channel:
+    {
+      status: -1,
+      responseStatus: 0,
+      loadFlags: 0,
+      INHIBIT_CACHING: 0,
+      VALIDATE_ALWAYS: 0,
+      QueryInterface: function() this
+    }
+  }
+
+  this.registerHandler = function(path, handler) requestHandlers[path] = handler;
+
+  let modules = Array.prototype.slice.call(arguments, 1);
+  this._virtualXMLHttpModules = modules;
+  for each (let module in this._virtualTimeModules)
+  {
+    let global = getModuleGlobal(module);
+
+    // Replace XMLHttpRequest constructor
+    this["_origXMLHttpRequest" + module] = global.XMLHttpRequest;
+    global.XMLHttpRequest = XMLHttpRequest;
+  }
+}
+
+function restoreVirtualXMLHttp()
+{
+  for each (let module in this._virtualXMLHttpModules)
+  {
+    let global = getModuleGlobal(module);
+
+    // Restore XMLHttpRequest constructor
+    if ("_origXMLHttpRequest" + module in this)
+    {
+      global.XMLHttpRequest = this["_origXMLHttpRequest" + module];
+      delete this["_origXMLHttpRequest" + module];
+    }
+  }
+}
+
 function showProfilingData(debuggerService)
 {
   let scripts = [];

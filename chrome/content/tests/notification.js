@@ -208,15 +208,13 @@
       deepEqual(Notification.getNextToShow(), null, "No notification on second call");
     }
 
-    function allPairs(array)
+    function pairs(array)
     {
-      var pairs = [];
-      for (var i = 0; i < array.length - 1; i++)
-        for (var j = i + 1; j < array.length; j++)
-          pairs.push([array[i], array[j]]);
-      return pairs;
+      for each (let element1 in array)
+        for each (let element2 in array)
+          yield [element1, element2];
     }
-    for each (let [[propName1, value1, result1], [propName2, value2, result2]] in allPairs(targets))
+    for (let [[propName1, value1, result1], [propName2, value2, result2]] in pairs(targets))
     {
       let targetInfo1 = {};
       targetInfo1[propName1] = value1;

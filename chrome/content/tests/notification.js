@@ -1,7 +1,6 @@
 (function()
 {
   let testRunner = null;
-  let server = null;
   let randomResult = 0.5;
 
   let originalInfo;
@@ -19,9 +18,7 @@
         let NotificationModule = getModuleGlobal("notification");
         NotificationModule.downloader._timer = wrapTimer(NotificationModule.downloader._timer);
       }, "notification", "downloader");
-
-      server = new nsHttpServer();
-      server.start(1234);
+      setupVirtualXMLHttp.call(this, "notification", "downloader");
 
       originalInfo = {};
       for (let key in info)
@@ -34,7 +31,7 @@
       info.platform = "chromium";
       info.platformVersion = "12.0";
 
-      Prefs.notificationurl = "http://127.0.0.1:1234/notification.json";
+      Prefs.notificationurl = "http://example.com/notification.json";
       Prefs.notificationdata = {};
 
       // Replace Math.random() function
@@ -48,13 +45,7 @@
     {
       restorePrefs.call(this);
       restoreVirtualTime.call(this);
-
-      stop();
-      server.stop(function()
-      {
-        server = null;
-        start();
-      });
+      restoreVirtualXMLHttp.call(this);
 
       for (let key in originalInfo)
         info[key] = originalInfo[key];
@@ -72,18 +63,14 @@
 
   function registerHandler(notifications)
   {
-    server.registerPathHandler("/notification.json", function(metadata, response)
+    testRunner.registerHandler("/notification.json", function(metadata)
     {
-      response.setStatusLine("1.1", "200", "OK");
-      response.setHeader("Content-Type", "application/json");
-
       let notification = {
         version: 55,
         notifications: notifications
       };
 
-      let result = JSON.stringify(notification);
-      response.bodyOutputStream.write(result, result.length);
+      return [Cr.NS_OK, 200, JSON.stringify(notification)];
     });
   }
 

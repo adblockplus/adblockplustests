@@ -268,6 +268,55 @@
           "The correct parameters are sent to the server");
   });
 
+  test("Expiration interval", function()
+  {
+    let tests = [
+      {
+        randomResult: 0.5,
+        requests: [0.2, 24.2, 48.2]
+      },
+      {
+        randomResult: 0,        // Changes interval by factor 0.8 (19.2 hours)
+        requests: [0.2, 20.2, 40.2]
+      },
+      {
+        randomResult: 1,        // Changes interval by factor 1.2 (28.8 hours)
+        requests: [0.2, 29.2, 58.2]
+      },
+      {
+        randomResult: 0.25,     // Changes interval by factor 0.9 (21.6 hours)
+        requests: [0.2, 22.2, 44.2]
+      },
+      {
+        randomResult: 0.5,
+        skipAfter: 5.2,
+        skip: 10,               // Short break should not increase soft expiration
+        requests: [0.2, 24.2]
+      },
+      {
+        randomResult: 0.5,
+        skipAfter: 5.2,
+        skip: 30,               // Long break should increase soft expiration, hitting hard expiration
+        requests: [0.2, 48.2]
+      }
+    ];
+
+    let requests = [];
+    registerHandler([], function(metadata) requests.push(testRunner.getTimeOffset()));
+    for each (let test in tests)
+    {
+      Prefs.notificationdata = {};
+      requests = [];
+      randomResult = test.randomResult;
+
+      let maxHours = Math.round(Math.max.apply(null, test.requests)) + 1;
+      testRunner.runScheduledTasks(maxHours, test.skipAfter, test.skip);
+
+      let skipAddendum = (typeof test.skip != "number" ? "" : " skipping " + test.skip + " hours after " + test.skipAfter + " hours");
+      deepEqual(requests, test.requests, "Requests with Math.random() returning " + randomResult + skipAddendum);
+    }
+  });
+
   module("Notification localization");
 
   test("Language only", function()

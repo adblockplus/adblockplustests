@@ -61,10 +61,13 @@
     }
   });
 
-  function registerHandler(notifications)
+  function registerHandler(notifications, checkCallback)
   {
     testRunner.registerHandler("/notification.json", function(metadata)
     {
+      if (checkCallback)
+        checkCallback(metadata);
+
       let notification = {
         version: 55,
         notifications: notifications
@@ -243,6 +246,24 @@
       expected = (result2 ? critical : (result1 ? information : null));
       deepEqual(Notification.getNextToShow(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
     }
+  });
+
+  test("Parameters sent", function()
+  {
+    Prefs.notificationdata = {
+      data: {
+        version: "3"
+      },
+    };
+    expect(1);
+    registerHandler([], function(metadata)
+    {
+      let parameters = decodeURI(metadata.queryString);
+      equal(parameters,
+            "addonName=adblockpluschrome&addonVersion=1.4.1&application=chrome&applicationVersion=27.0&platform=chromium&platformVersion=12.0&lastVersion=3",
+            "The correct parameters are sent to the server");
+    });
+    testRunner.runScheduledTasks(1);
   });
 
   module("Notification localization");

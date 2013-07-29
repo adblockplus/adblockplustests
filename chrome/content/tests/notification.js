@@ -255,15 +255,17 @@
         version: "3"
       },
     };
-    expect(1);
+
+    let parameters = null;
     registerHandler([], function(metadata)
     {
-      let parameters = decodeURI(metadata.queryString);
-      equal(parameters,
-            "addonName=adblockpluschrome&addonVersion=1.4.1&application=chrome&applicationVersion=27.0&platform=chromium&platformVersion=12.0&lastVersion=3",
-            "The correct parameters are sent to the server");
+      parameters = decodeURI(metadata.queryString);
     });
     testRunner.runScheduledTasks(1);
+
+    equal(parameters,
+          "addonName=adblockpluschrome&addonVersion=1.4.1&application=chrome&applicationVersion=27.0&platform=chromium&platformVersion=12.0&lastVersion=3",
+          "The correct parameters are sent to the server");
   });
 
   module("Notification localization");

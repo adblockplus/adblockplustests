@@ -81,15 +81,16 @@
 
   test("String pref", function()
   {
-    Prefs.data_directory = "adblockplus";
-    equal(Prefs.data_directory, "adblockplus", "Prefs object returns the correct value after setting pref to default value");
-    equal(prefExists("data_directory"), false, "User-defined pref has been removed");
+    let defaultValue = "https://notification.adblockplus.org/notification.json";
+    Prefs.notificationurl = defaultValue;
+    equal(Prefs.notificationurl, defaultValue, "Prefs object returns the correct value after setting pref to default value");
+    equal(prefExists("notificationurl"), false, "User-defined pref has been removed");
 
-    let newValue = "foo\u1234bar";
-    Prefs.data_directory = newValue;
-    equal(Prefs.data_directory, newValue, "Prefs object returns the correct value after setting pref to non-default value");
-    equal(prefExists("data_directory"), true, "User-defined pref has been created");
-    checkPref("data_directory", newValue, "Value has been written");
+    let newValue = "https://notification.adblockplus.org/foo\u1234bar.json";
+    Prefs.notificationurl = newValue;
+    equal(Prefs.notificationurl, newValue, "Prefs object returns the correct value after setting pref to non-default value");
+    equal(prefExists("notificationurl"), true, "User-defined pref has been created");
+    checkPref("notificationurl", newValue, "Value has been written");
   });
 
   test("Object pref (complete replacement)", function()

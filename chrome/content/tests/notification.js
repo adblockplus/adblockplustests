@@ -95,7 +95,7 @@
   {
     let information = fixConstructors({
       id: 1,
-      severity: "information",
+      type: "information",
       message: {"en-US": "Information"}
     });
 
@@ -110,12 +110,12 @@
   {
     let information = fixConstructors({
       id: 1,
-      severity: "information",
+      type: "information",
       message: {"en-US": "Information"}
     });
     let critical = fixConstructors({
       id: 2,
-      severity: "critical",
+      type: "critical",
       message: {"en-US": "Critical"}
     });
 
@@ -126,7 +126,7 @@
     deepEqual(Notification.getNextToShow(), critical, "Critical notifications can be shown multiple times");
   });
 
-  test("No severity", function()
+  test("No type", function()
   {
     let information = fixConstructors({
       id: 1,
@@ -137,7 +137,7 @@
     testRunner.runScheduledTasks(1);
 
     deepEqual(Notification.getNextToShow(), information, "The notification is shown");
-    equal(Notification.getNextToShow(), null, "Notification is treated as severity information");
+    equal(Notification.getNextToShow(), null, "Notification is treated as type information");
   });
 
   test("Target selection", function()
@@ -184,7 +184,7 @@
 
       let information = fixConstructors({
         id: 1,
-        severity: "information",
+        type: "information",
         message: {"en-US": "Information"},
         targets: [targetInfo]
       });
@@ -213,7 +213,7 @@
 
       let information = fixConstructors({
         id: 1,
-        severity: "information",
+        type: "information",
         message: {"en-US": "Information"},
         targets: [targetInfo1, targetInfo2]
       });
@@ -228,13 +228,13 @@
 
       information = fixConstructors({
         id: 1,
-        severity: "information",
+        type: "information",
         message: {"en-US": "Information"},
         targets: [targetInfo1]
       });
       let critical = fixConstructors({
         id: 2,
-        severity: "critical",
+        type: "critical",
         message: {"en-US": "Critical"},
         targets: [targetInfo2]
       });
@@ -317,7 +317,73 @@
     }
   });
 
+  test("Uses severity instead of type", 3, function()
+  {
+    let severityNotification = {
+      id: 1,
+      severity: "information",
+      message: {"en-US": "Information"}
+    };
+
+    function listener(name)
+    {
+      if (name !== "notificationdata")
+        return;
+
+      Prefs.removeListener(listener);
+      let notification = Prefs.notificationdata.data.notifications[0];
+      ok(!("severity" in notification), "Severity property was removed");
+      ok("type" in notification, "Type property was added");
+      equal(notification.type, severityNotification.severity, "Type property has correct value");
+    }
+    Prefs.addListener(listener);
+
+    let responseText = JSON.stringify({
+      notifications: [severityNotification]
+    });
+    Notification._onDownloadSuccess(null, responseText, function() {}, function() {});
+  });
+
+  test("URL-specific notification", function()
+  {
+    let withURLFilterFoo = fixConstructors({
+      id: 1,
+      urlFilters: ["foo.com"]
+    });
+    let withoutURLFilter = fixConstructors({
+      id: 2
+    });
+    let withURLFilterBar = fixConstructors({
+      id: 3,
+      urlFilters: ["bar.com"]
+    });
+    let subdomainURLFilter = fixConstructors({
+      id: 4,
+      urlFilters: ["||example.com"]
+    });
+
+    registerHandler([
+      withURLFilterFoo,
+      withoutURLFilter,
+      withURLFilterBar,
+      subdomainURLFilter
+    ]);
+    testRunner.runScheduledTasks(1);
+
+    deepEqual(Notification.getNextToShow(), withoutURLFilter, "URL-specific notifications are skipped");
+    deepEqual(Notification.getNextToShow("http://foo.com"), withURLFilterFoo, "URL-specific notification is retrieved");
+    deepEqual(Notification.getNextToShow("http://foo.com"), null, "URL-specific notification is not retrieved");
+    deepEqual(Notification.getNextToShow("http://www.example.com"), subdomainURLFilter, "URL-specific notification matches subdomain");
+  });
+
   module("Notification localization");
+
+  test("Message without localization", function()
+  {
+    let notification = {message: "non-localized"};
+    let texts = Notification.getLocalizedTexts(notification, "en-US");
+    equal(texts.message, "non-localized");
+  });
 
   test("Language only", function()
   {

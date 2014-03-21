@@ -45,6 +45,7 @@ let {FilterListener} = require("filterListener");
 let {FilterNotifier} = require("filterNotifier");
 let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
+let {IO} = require("io");
 let {Notification} = require("notification");
 let {Prefs} = require("prefs");
 let {RequestNotifier} = require("requestNotifier");

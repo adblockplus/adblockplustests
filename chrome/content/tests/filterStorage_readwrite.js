@@ -33,6 +33,17 @@
     FilterStorage.loadFromDisk(file);
   }
 
+  function writeToFile(file, data)
+  {
+    let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"].createInstance(Ci.nsIScriptableUnicodeConverter);
+    converter.charset = "utf-8";
+    data = converter.ConvertFromUnicode(data);
+
+    let stream = FileUtils.openFileOutputStream(file);
+    stream.write(data, data.length);
+    stream.close();
+  }
+
   function saveFilters(file, callback)
   {
     let listener = function(action)
@@ -50,9 +61,10 @@
 
   function testReadWrite(withExternal)
   {
-    let tempFile = FileUtils.getFile("TmpD", ["temp_patterns.ini"]);
+    let tempFile = FileUtils.getFile("TmpD", ["temp_patterns1.ini"]);
+    let tempFile2 = FileUtils.getFile("TmpD", ["temp_patterns2.ini"]);
     tempFile.createUnique(tempFile.NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
-    readFile();
+    createTempFile();
 
     function canonize(data)
     {
@@ -89,10 +101,17 @@
       }).join("\n");
     }
 
-    function readFile()
+    function createTempFile()
     {
-      let source = Services.io.newURI("data/patterns.ini", null, Services.io.newURI(window.location.href, null, null));
-      loadFilters(source, saveFile);
+      let request = new XMLHttpRequest();
+      request.open("GET", "data/patterns.ini");
+      request.overrideMimeType("text/plain; charset=utf-8");
+      request.addEventListener("load", function()
+      {
+        writeToFile(tempFile, request.responseText);
+        loadFilters(tempFile, saveFile);
+      }, false);
+      request.send(null);
     }
 
     function saveFile()
@@ -114,13 +133,13 @@
         }
       }
 
-      saveFilters(tempFile, compareFile);
+      saveFilters(tempFile2, compareFile);
     }
 
     function compareFile()
     {
       let stream = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
-      stream.init(tempFile, FileUtils.MODE_RDONLY, FileUtils.PERMS_FILE, Ci.nsIFileInputStream.DEFER_OPEN);
+      stream.init(tempFile2, FileUtils.MODE_RDONLY, FileUtils.PERMS_FILE, Ci.nsIFileInputStream.DEFER_OPEN);
 
       NetUtil.asyncFetch(stream, function(inputStream, nsresult)
       {
@@ -135,6 +154,7 @@
           equal(canonize(result), canonize(expected), "Read/write result");
 
           tempFile.remove(false);
+          tempFile2.remove(false);
           start();
         }, false);
         request.send(null);
@@ -142,8 +162,8 @@
     }
   }
 
-  asyncTest("Read from URL, write to file", testReadWrite.bind(false));
-  asyncTest("Read from URL, add external subscription, write to file", testReadWrite.bind(true));
+  asyncTest("Read and save to file", testReadWrite.bind(false));
+  asyncTest("Read, add external subscription and save to file", testReadWrite.bind(true));
 
   let groupTests = [
     ["~wl~", "whitelist"],
@@ -156,9 +176,12 @@
     asyncTest("Read empty legacy user-defined group (" + url + ")", function()
     {
       let data = "[Subscription]\nurl=" + url;
-      let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
-      loadFilters(Services.io.newURI(source, null, null), function()
+      let tempFile = FileUtils.getFile("TmpD", ["temp_patterns1.ini"]);
+      writeToFile(tempFile, data);
+
+      loadFilters(tempFile, function()
       {
+        tempFile.remove(false);
         equal(FilterStorage.subscriptions.length, 0, "Number of filter subscriptions");
         start();
       });
@@ -166,9 +189,12 @@
     asyncTest("Read non-empty legacy user-defined group (" + url + ")", function()
     {
       let data = "[Subscription]\nurl=" + url + "\n[Subscription filters]\nfoo";
-      let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
-      loadFilters(Services.io.newURI(source, null, null), function()
+      let tempFile = FileUtils.getFile("TmpD", ["temp_patterns1.ini"]);
+      writeToFile(tempFile, data);
+
+      loadFilters(tempFile, function()
       {
+        tempFile.remove(false);
         equal(FilterStorage.subscriptions.length, 1, "Number of filter subscriptions");
         if (FilterStorage.subscriptions.length == 1)
         {
@@ -188,9 +214,12 @@
   asyncTest("Read legacy user-defined filters", function()
   {
     let data = "[Subscription]\nurl=~user~1234\ntitle=Foo\n[Subscription filters]\n[User patterns]\nfoo\n\\[bar]\nfoo#bar";
-    let source = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
-    loadFilters(Services.io.newURI(source, null, null), function()
+    let tempFile = FileUtils.getFile("TmpD", ["temp_patterns1.ini"]);
+    writeToFile(tempFile, data);
+
+    loadFilters(tempFile, function()
     {
+      tempFile.remove(false);
       equal(FilterStorage.subscriptions.length, 1, "Number of filter subscriptions");
       if (FilterStorage.subscriptions.length == 1)
       {

@@ -57,4 +57,19 @@
     FilterNotifier.removeListener(listener2);
     compareListeners("removeListener(listener2)", []);
   });
+
+  test("Removing listeners while being called", function()
+  {
+    let listener1 = function()
+    {
+      listeners[0].apply(this, arguments);
+      FilterNotifier.removeListener(listener1);
+    };
+    let listener2 = listeners[1];
+    FilterNotifier.addListener(listener1);
+    FilterNotifier.addListener(listener2);
+
+    compareListeners("Initial call", [listener1, listener2]);
+    compareListeners("Subsequent calls", [listener2]);
+  });
 })();

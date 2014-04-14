@@ -43,7 +43,7 @@
       }
 
       let files = getTestFiles();
-      for each (let file in files)
+      for (let file of files)
       {
         let script = document.createElement("script");
         script.setAttribute("src", file);

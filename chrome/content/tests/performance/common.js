@@ -49,7 +49,7 @@ function getConfidenceInterval(results)
   let sum = 0;
   let sqrsum = 0;
 
-  for each (let result in results)
+  for (let result of results)
   {
     sum += result;
     sqrsum += result * result;

@@ -15,7 +15,7 @@
     FilterNotifier.triggerListeners("foo", {bar: true});
 
     let result2 = triggeredListeners = [];
-    for each (let observer in list)
+    for (let observer of list)
       observer("foo", {bar: true});
 
     deepEqual(result1, result2, test);

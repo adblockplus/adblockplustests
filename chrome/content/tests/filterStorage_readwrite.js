@@ -70,7 +70,7 @@
     {
       let curSection = null;
       let sections = [];
-      for each (let line in (data + "\n[end]").split(/[\r\n]+/))
+      for (let line of (data + "\n[end]").split(/[\r\n]+/))
       {
         if (/^\[.*\]$/.test(line))
         {
@@ -82,7 +82,7 @@
         else if (curSection && /\S/.test(line))
           curSection.data.push(line);
       }
-      for each (let section in sections)
+      for (let section of sections)
       {
         section.key = section.header + " " + section.data[0];
         section.data.sort();

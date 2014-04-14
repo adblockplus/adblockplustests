@@ -177,7 +177,7 @@
       ["platformMaxVersion", "11", false],
     ];
 
-    for each (let [propName, value, result] in targets)
+    for (let [propName, value, result] of targets)
     {
       let targetInfo = {};
       targetInfo[propName] = value;
@@ -200,8 +200,8 @@
 
     function pairs(array)
     {
-      for each (let element1 in array)
-        for each (let element2 in array)
+      for (let element1 of array)
+        for (let element2 of array)
           yield [element1, element2];
     }
     for (let [[propName1, value1, result1], [propName2, value2, result2]] in pairs(targets))
@@ -303,7 +303,7 @@
 
     let requests = [];
     registerHandler([], function(metadata) requests.push(testRunner.getTimeOffset()));
-    for each (let test in tests)
+    for (let test of tests)
     {
       Prefs.notificationdata = {};
       requests = [];

@@ -71,7 +71,7 @@
                                                               .replace(/[\r\n]+$/, "")
                                                               .split(/[\r\n]+/)
                                                               .map(function(text) Filter.fromText(text));
-        for each (let filter in filters)
+        for (let filter of filters)
         {
           if (filter instanceof RegExpFilter)
             defaultMatcher.add(filter);
@@ -82,7 +82,7 @@
       }
       else
       {
-        for each (let category in PolicyPrivate.xpcom_categories)
+        for (let category of PolicyPrivate.xpcom_categories)
           Utils.categoryManager.deleteCategoryEntry(category, PolicyPrivate.classDescription, false);
       }
 
@@ -99,7 +99,7 @@
       let eventListener = function() {loaded = true;};
       frame.addEventListener("load", eventListener, false);
 
-      for each (let url in urls)
+      for (let url of urls)
       {
         loaded = false;
         frame.src = url;
@@ -117,7 +117,7 @@
 
       server.stop();
 
-      for each (let category in PolicyPrivate.xpcom_categories)
+      for (let category of PolicyPrivate.xpcom_categories)
         Utils.categoryManager.addCategoryEntry(category, PolicyPrivate.classDescription, PolicyPrivate.contractID, false, true);
 
       document.getElementById("progress").style.display = "none";

@@ -127,7 +127,7 @@
       {header: "[Adblock Plus 99.9]", downloadStatus: "synchronize_ok", requiredVersion: "99.9"},
       {header: "[Foo]", downloadStatus: "synchronize_invalid_data", requiredVersion: null}
     ];
-    for each (test in tests)
+    for (test of tests)
     {
       resetSubscription(subscription)
       testRunner.runScheduledTasks(2);
@@ -247,7 +247,7 @@
       }
     ]
 
-    for each (test in tests)
+    for (test of tests)
     {
       requests = [];
       randomResult = test.randomResult;
@@ -288,7 +288,7 @@
       return [Cr.NS_OK, 200, subscriptionBody];
     });
 
-    for each ([testName, subscriptionBody, expectedResult] in tests)
+    for ([testName, subscriptionBody, expectedResult] of tests)
     {
       resetSubscription(subscription);
       testRunner.runScheduledTasks(2);
@@ -318,7 +318,7 @@
       return [Cr.NS_OK, 200, "[Adblock]\n" + comment + "\nfoo\nbar"];
     });
 
-    for each([comment, check] in tests)
+    for ([comment, check] of tests)
     {
       resetSubscription(subscription);
       testRunner.runScheduledTasks(2);

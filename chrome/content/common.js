@@ -169,7 +169,7 @@ function setupVirtualTime(processTimers)
   let modules = Array.prototype.slice.call(arguments, 1);
   this._virtualTimeModules = modules;
 
-  for each (let module in this._virtualTimeModules)
+  for (let module of this._virtualTimeModules)
   {
     let global = Cu.getGlobalForObject(getModuleGlobal(module));
 
@@ -236,7 +236,7 @@ function setupVirtualTime(processTimers)
     while (true)
     {
       let nextTask = null;
-      for each (let task in scheduledTasks)
+      for (let task of scheduledTasks)
       {
         if (!nextTask || nextTask.nextExecution > task.nextExecution)
           nextTask = task;
@@ -272,7 +272,7 @@ function setupVirtualTime(processTimers)
   {
     let newTasks = [];
     currentTime += hours * MILLIS_IN_HOUR;
-    for each (let task in scheduledTasks)
+    for (let task of scheduledTasks)
     {
       if (task.nextExecution >= currentTime)
         newTasks.push(task);
@@ -292,7 +292,7 @@ function setupVirtualTime(processTimers)
 
 function restoreVirtualTime()
 {
-  for each (let module in this._virtualTimeModules)
+  for (let module of this._virtualTimeModules)
   {
     let global = Cu.getGlobalForObject(getModuleGlobal(module));
 
@@ -406,7 +406,7 @@ function setupVirtualXMLHttp()
 
         let eventName = (this.channel.status == Cr.NS_OK ? "load" : "error");
         let event = {type: eventName};
-        for each (let handler in this["_" + eventName + "Handlers"])
+        for (let handler of this["_" + eventName + "Handlers"])
           handler.call(this, event);
       }.bind(this));
     },
@@ -430,7 +430,7 @@ function setupVirtualXMLHttp()
 
   let modules = Array.prototype.slice.call(arguments, 1);
   this._virtualXMLHttpModules = modules;
-  for each (let module in this._virtualTimeModules)
+  for (let module of this._virtualTimeModules)
   {
     let global = getModuleGlobal(module);
 
@@ -442,7 +442,7 @@ function setupVirtualXMLHttp()
 
 function restoreVirtualXMLHttp()
 {
-  for each (let module in this._virtualXMLHttpModules)
+  for (let module of this._virtualXMLHttpModules)
   {
     let global = getModuleGlobal(module);
 
@@ -484,7 +484,7 @@ function showProfilingData(debuggerService)
   header.insertCell(-1).textContent = "Max execution time (total/own)";
   header.insertCell(-1).textContent = "Total execution time (total/own)";
 
-  for each (let script in scripts)
+  for (let script of scripts)
     showProfilingDataForScript(script, table);
 
   document.getElementById("display").appendChild(table);

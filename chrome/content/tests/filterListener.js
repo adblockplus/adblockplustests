@@ -24,7 +24,7 @@
   function checkKnownFilters(text, expected)
   {
     let result = {};
-    for each (let type in ["blacklist", "whitelist"])
+    for (let type of ["blacklist", "whitelist"])
     {
       let matcher = defaultMatcher[type]
       let filters = [];
@@ -54,7 +54,7 @@
         result.elemhideexception.push(list[i].text);
     }
 
-    for each (let type in ["blacklist", "whitelist", "elemhide", "elemhideexception"])
+    for (let type of ["blacklist", "whitelist", "elemhide", "elemhideexception"])
       if (!(type in expected))
         expected[type] = [];
 

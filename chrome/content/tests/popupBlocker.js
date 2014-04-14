@@ -130,6 +130,6 @@
     frame.contentDocument.getElementById("link").click();
   }
 
-  for each (let [filter, result] in tests)
+  for (let [filter, result] of tests)
     asyncTest(filter, runTest.bind(null, Filter.fromText(filter), result));
 })();

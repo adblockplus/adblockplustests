@@ -136,7 +136,7 @@
     }
     FilterNotifier.addListener(listener);
 
-    for each (let filter in filters)
+    for (let filter of filters)
       ElemHide.add(Filter.fromText(filter));
     ElemHide.isDirty = true;
     ElemHide.apply();

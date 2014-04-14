@@ -39,7 +39,7 @@
 
   function write(file)
   {
-    IO.writeToFile(file, true, function dataGenerator()
+    IO.writeToFile(file, function dataGenerator()
     {
       for (let i = 0; i < 10000; i++)
         yield "\u1234" + i + "\uffff\x00";
@@ -54,7 +54,7 @@
   {
     let eofReceived = false;
     let i = 0;
-    IO.readFromFile(file, true, {
+    IO.readFromFile(file, {
       process: function(line)
       {
         if (eofReceived)
@@ -83,7 +83,7 @@
 
   function failedRead(file)
   {
-    IO.readFromFile(file, true, {
+    IO.readFromFile(file, {
       process: function(line)
       {
         ok(false, "Line received for non-existing file")

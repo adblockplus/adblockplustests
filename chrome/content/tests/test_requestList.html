@@ -115,7 +115,7 @@
         if (wndScanComplete && frameScanComplete)
         {
           // Fold duplicate entries
-          for each (let list in [wndData, frameData])
+          for (let list of [wndData, frameData])
           {
             let keys = {};
             for (let i = 0; i < list.length; i++)

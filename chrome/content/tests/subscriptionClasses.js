@@ -13,7 +13,7 @@
     equal(result.sort().join("\n"), expected.sort().join("\n"), url);
 
     let map = {__proto__: null};
-    for each (let line in result.slice(1))
+    for (let line of result.slice(1))
     {
       if (/(.*?)=(.*)/.test(line))
         map[RegExp.$1] = RegExp.$2;

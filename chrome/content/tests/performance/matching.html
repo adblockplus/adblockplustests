@@ -59,7 +59,7 @@
       document.getElementById("progress").style.display = "";
 
       defaultMatcher.clear();
-      for each (let filter in filters)
+      for (let filter of filters)
         defaultMatcher.add(filter);
 
       runTests(runTest, cleanup, finalize);
@@ -67,7 +67,7 @@
 
     function runTest()
     {
-      for each (let address in addresses)
+      for (let address of addresses)
         defaultMatcher.matchesAny(address, "IMAGE", null, false);
     }
 

@@ -4,11 +4,11 @@
 
   function compareKeywords(text, expected)
   {
-    for each (let filter in [Filter.fromText(text), Filter.fromText("@@" + text)])
+    for (let filter of [Filter.fromText(text), Filter.fromText("@@" + text)])
     {
       let matcher = new Matcher();
       let result = [];
-      for each (let dummy in expected)
+      for (let dummy of expected)
       {
         keyword = matcher.findKeyword(filter);
         result.push(keyword);
@@ -27,7 +27,7 @@
   function checkMatch(filters, location, contentType, docDomain, thirdParty, expected)
   {
     let matcher = new Matcher();
-    for each (let filter in filters)
+    for (let filter of filters)
       matcher.add(Filter.fromText(filter));
 
     let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
@@ -39,7 +39,7 @@
     let combinedMatcher = new CombinedMatcher();
     for (let i = 0; i < 2; i++)
     {
-      for each (let filter in filters)
+      for (let filter of filters)
         combinedMatcher.add(Filter.fromText(filter));
 
       let result = combinedMatcher.matchesAny(location, contentType, docDomain, thirdParty);

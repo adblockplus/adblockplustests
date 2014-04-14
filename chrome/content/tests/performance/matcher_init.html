@@ -51,7 +51,7 @@
     {
       // Add everything to the same matcher, don't bother separating whitelist and blacklist
       let matcher = new CombinedMatcher();
-      for each (let filter in filters)
+      for (let filter of filters)
         matcher.add(filter);
     }
 

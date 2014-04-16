@@ -72,16 +72,6 @@
     ["||127.0.0.1:1234/redirect$~subdocument", true],
     ["||127.0.0.1:1234/redirect$popup,domain=127.0.0.1", false],
     ["||127.0.0.1:1234/redirect$popup,domain=128.0.0.1", true],
-
-    // These are messed up by bug 467514 (a click inside a frame opening a new
-    // tab should be considered as type document, not subdocument). We cannot
-    // fix the bug but at least we can ensure consistent results.
-    ["||127.0.0.1:1234/target$subdocument", false],
-    ["||127.0.0.1:1234/target$subdocument,domain=127.0.0.1", false],
-    ["||127.0.0.1:1234/target$subdocument,domain=128.0.0.1", true],
-    ["||127.0.0.1:1234/redirect$subdocument", false],
-    ["||127.0.0.1:1234/redirect$subdocument,domain=127.0.0.1", false],
-    ["||127.0.0.1:1234/redirect$subdocument,domain=128.0.0.1", true],
   ];
 
   function runTest(filter, result)
@@ -117,7 +107,6 @@
       var keys = [];
       for (key in defaultMatcher.blacklist.keywordByFilter)
         keys.push(key);
-      Cu.reportError(filter instanceof RegExpFilter);
 
       FilterStorage.removeFilter(filter);
       start();

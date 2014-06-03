@@ -49,7 +49,7 @@
       equal(result, expected, "combinedMatch(" + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ") with:\n" + filters.join("\n"));
 
       // For next run: add whitelisting filters
-      filters = filters.map(function(text) "@@" + text);
+      filters = filters.map((text) => "@@" + text);
       if (expected)
         expected = "@@" + expected;
     }

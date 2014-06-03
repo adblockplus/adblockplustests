@@ -37,7 +37,7 @@
       // Replace Math.random() function
       let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
       this._origRandom = DownloaderGlobal.Math.random;
-      DownloaderGlobal.Math.random = function() randomResult;
+      DownloaderGlobal.Math.random = () => randomResult;
       randomResult = 0.5;
     },
 
@@ -302,7 +302,7 @@
     ];
 
     let requests = [];
-    registerHandler([], function(metadata) requests.push(testRunner.getTimeOffset()));
+    registerHandler([], (metadata) => requests.push(testRunner.getTimeOffset()));
     for (let test of tests)
     {
       Prefs.notificationdata = {};

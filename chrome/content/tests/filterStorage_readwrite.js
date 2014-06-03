@@ -243,7 +243,7 @@
 
     let tempFile = FileUtils.getFile("TmpD", ["temp_patterns.ini"]);
     tempFile.createUnique(tempFile.NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
-    FilterStorage.__defineGetter__("sourceFile", function() tempFile.clone());
+    FilterStorage.__defineGetter__("sourceFile", () => tempFile.clone());
 
     saveFilters(null, function()
     {
@@ -264,7 +264,7 @@
 
     let tempFile = FileUtils.getFile("TmpD", ["temp_patterns.ini"]);
     tempFile.createUnique(tempFile.NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
-    FilterStorage.__defineGetter__("sourceFile", function() tempFile.clone());
+    FilterStorage.__defineGetter__("sourceFile", () => tempFile.clone());
 
     let backupFile = tempFile.clone();
     backupFile.leafName = backupFile.leafName.replace(/\.ini$/, "-backup1.ini");

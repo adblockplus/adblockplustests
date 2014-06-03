@@ -21,7 +21,7 @@
       // Replace Math.random() function
       let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
       this._origRandom = DownloaderGlobal.Math.random;
-      DownloaderGlobal.Math.random = function() randomResult;
+      DownloaderGlobal.Math.random = () => randomResult;
       randomResult = 0.5;
     },
 
@@ -303,14 +303,14 @@
 
     let comment, check;
     let tests = [
-      ["! Homepage: http://example.com/", function() equal(subscription.homepage, "http://example.com/", "Valid homepage comment")],
-      ["! Homepage: ssh://example.com/", function() equal(subscription.homepage, null, "Invalid homepage comment")],
+      ["! Homepage: http://example.com/", () => equal(subscription.homepage, "http://example.com/", "Valid homepage comment")],
+      ["! Homepage: ssh://example.com/", () => equal(subscription.homepage, null, "Invalid homepage comment")],
       ["! Title: foo", function()
         {
           equal(subscription.title, "foo", "Title comment");
           equal(subscription.fixedTitle, true, "Fixed title");
         }],
-      ["! Version: 1234", function() equal(subscription.version, 1234, "Version comment")]
+      ["! Version: 1234", () => equal(subscription.version, 1234, "Version comment")]
     ];
 
     testRunner.registerHandler("/subscription", function(metadata)

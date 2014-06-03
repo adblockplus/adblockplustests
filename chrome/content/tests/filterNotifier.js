@@ -4,9 +4,9 @@
 
   let triggeredListeners = [];
   let listeners = [
-    function(action, item) triggeredListeners.push(["listener1", action, item]),
-    function(action, item) triggeredListeners.push(["listener2", action, item]),
-    function(action, item) triggeredListeners.push(["listener3", action, item])
+    (action, item) => triggeredListeners.push(["listener1", action, item]),
+    (action, item) => triggeredListeners.push(["listener2", action, item]),
+    (action, item) => triggeredListeners.push(["listener3", action, item])
   ];
 
   function compareListeners(test, list)

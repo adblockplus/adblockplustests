@@ -69,7 +69,7 @@ function prepareFilterComponents(keepListeners)
     subscriptionsKnown: Subscription.knownSubscriptions,
     filtersKnown: Filter.knownFilters,
     listeners: FilterNotifierGlobal.listeners,
-    sourceFile: FilterStorage.__lookupGetter__("sourceFile")
+    sourceFile: FilterStorage.sourceFile
   };
 
   FilterStorage.subscriptions = [];
@@ -112,7 +112,7 @@ function restoreFilterComponents()
   Subscription.knownSubscriptions = this._backup.subscriptionsKnown;
   Filter.knownFilters = this._backup.filtersKnown;
   FilterNotifierGlobal.listeners = this._backup.listeners;
-  FilterStorage.__defineGetter__("sourceFile", this._backup.sourceFile);
+  FilterStorage.sourceFile = this._backup.sourceFile;
 
   scheduleReinit();
 

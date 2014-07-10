@@ -112,7 +112,7 @@ function restoreFilterComponents()
   Subscription.knownSubscriptions = this._backup.subscriptionsKnown;
   Filter.knownFilters = this._backup.filtersKnown;
   FilterNotifierGlobal.listeners = this._backup.listeners;
-  FilterStorage.sourceFile = this._backup.sourceFile;
+  Object.defineProperty(FilterStorage, "sourceFile", {value: this._backup.sourceFile, configurable: true});
 
   scheduleReinit();
 

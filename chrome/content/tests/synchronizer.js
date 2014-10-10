@@ -359,7 +359,7 @@
       return [Cr.NS_OK, 200, "[Adblock]\nfoo\n!Redirect: http://example.com/subscription\nbar"];
     })
 
-    let subscription = Subscription.fromURL("http://example.com/subscription");
+    subscription = Subscription.fromURL("http://example.com/subscription");
     resetSubscription(subscription);
     FilterStorage.removeSubscription(FilterStorage.subscriptions[0]);
     FilterStorage.addSubscription(subscription);

@@ -105,7 +105,7 @@
       wnd.gBrowser.tabContainer.removeEventListener("TabClose", onTabClose, false);
       ok(result == successful, "Opening tab with filter " + filter.text);
       var keys = [];
-      for (key in defaultMatcher.blacklist.keywordByFilter)
+      for (let key in defaultMatcher.blacklist.keywordByFilter)
         keys.push(key);
 
       FilterStorage.removeFilter(filter);

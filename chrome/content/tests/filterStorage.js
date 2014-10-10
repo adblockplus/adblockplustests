@@ -369,25 +369,25 @@
     equal(filter1.lastHit, 0, "filter1 initial last hit");
     equal(filter2.lastHit, 0, "filter2 initial last hit");
 
-    let changes = [];
+    changes = [];
     FilterStorage.increaseHitCount(filter1);
     equal(filter1.hitCount, 1, "Hit count after increase (filter in list)");
     ok(filter1.lastHit > 0, "Last hit changed after increase");
     deepEqual(changes, ["filter.hitCount filter1", "filter.lastHit filter1"], "Received changes");
 
-    let changes = [];
+    changes = [];
     FilterStorage.increaseHitCount(filter2);
     equal(filter2.hitCount, 1, "Hit count after increase (filter not in list)");
     ok(filter2.lastHit > 0, "Last hit changed after increase");
     deepEqual(changes, ["filter.hitCount filter2", "filter.lastHit filter2"], "Received changes");
 
-    let changes = [];
+    changes = [];
     FilterStorage.resetHitCounts([filter1]);
     equal(filter1.hitCount, 0, "Hit count after reset");
     equal(filter1.lastHit, 0, "Last hit after reset");
     deepEqual(changes, ["filter.hitCount filter1", "filter.lastHit filter1"], "Received changes");
 
-    let changes = [];
+    changes = [];
     FilterStorage.resetHitCounts(null);
     equal(filter2.hitCount, 0, "Hit count after complete reset");
     equal(filter2.lastHit, 0, "Last hit after complete reset");

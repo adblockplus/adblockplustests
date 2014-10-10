@@ -10,7 +10,7 @@
       let result = [];
       for (let dummy of expected)
       {
-        keyword = matcher.findKeyword(filter);
+        let keyword = matcher.findKeyword(filter);
         result.push(keyword);
         if (keyword)
         {

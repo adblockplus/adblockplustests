@@ -264,7 +264,7 @@
     testRunner.runScheduledTasks(1);
 
     equal(parameters,
-          "addonName=adblockpluschrome&addonVersion=1.4.1&application=chrome&applicationVersion=27.0&platform=chromium&platformVersion=12.0&lastVersion=3",
+          "addonName=adblockpluschrome&addonVersion=1.4.1&application=chrome&applicationVersion=27.0&platform=chromium&platformVersion=12.0&lastVersion=3&downloadCount=0",
           "The correct parameters are sent to the server");
   });
 
@@ -341,7 +341,7 @@
     let responseText = JSON.stringify({
       notifications: [severityNotification]
     });
-    Notification._onDownloadSuccess(null, responseText, function() {}, function() {});
+    Notification._onDownloadSuccess({}, responseText, function() {}, function() {});
   });
 
   test("URL-specific notification", function()

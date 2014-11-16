@@ -83,24 +83,6 @@ function prepareFilterComponents(keepListeners)
 
   defaultMatcher.clear();
   ElemHide.clear();
-
-  try
-  {
-    // Disable timeline functions, they slow down tests otherwise
-    let {TimeLine} = require("timeline");
-
-    this._backup.timelineLog = TimeLine.log;
-    this._backup.timelineEnter = TimeLine.enter;
-    this._backup.timelineLeave = TimeLine.leave;
-
-    TimeLine.log = function(){};
-    TimeLine.enter = function(){};
-    TimeLine.leave = function(){};
-  }
-  catch(e)
-  {
-    // TimeLine module might not be present, catch exceptions
-  }
 }
 
 function restoreFilterComponents()
@@ -115,15 +97,6 @@ function restoreFilterComponents()
   Object.defineProperty(FilterStorage, "sourceFile", {value: this._backup.sourceFile, configurable: true});
 
   scheduleReinit();
-
-  if ("timelineLeave" in this._backup)
-  {
-    let {TimeLine} = require("timeline");
-
-    TimeLine.log = this._backup.timelineLog;
-    TimeLine.enter = this._backup.timelineEnter;
-    TimeLine.leave = this._backup.timelineLeave;
-  }
 }
 
 // Only reinit our data structures when all the tests are done to prevent

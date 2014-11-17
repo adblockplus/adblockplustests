@@ -1,1 +1,2 @@
 content adblockplustests chrome/content/
+locale adblockplustests {{LOCALE}} chrome/locale/{{LOCALE}}/

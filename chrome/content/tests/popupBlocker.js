@@ -1,7 +1,8 @@
 (function()
 {
   let server = null;
-  let frame = null;
+  let wnd = null;
+  let tab = null;
 
   module("Pop-up blocker", {
     setup: function()
@@ -17,7 +18,10 @@
         response.setStatusLine("1.1", "200", "OK");
         response.setHeader("Content-Type", "text/html; charset=utf-8");
 
-        let body = '<html><body><a id="link" href="/redirect" target="_blank">link</a></body></html>';
+        let body =
+          '<body onload="document.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));">' +
+            '<a id="link" href="/redirect" target="_blank">link</a>' +
+          '</body>';
         response.bodyOutputStream.write(body, body.length);
       });
       server.registerPathHandler("/redirect", function(metadata, response)
@@ -27,23 +31,20 @@
       });
       server.registerPathHandler("/target", function(metadata, response)
       {
-        response.setStatusLine("1.1", "302", "Moved Temporarily");
         response.setHeader("Content-Type", "text/html; charset=utf-8");
 
         let body = '<html><body>OK</body></html>';
         response.bodyOutputStream.write(body, body.length);
       });
 
-      frame = document.createElement("iframe");
-      frame.setAttribute("src", "http://127.0.0.1:1234/test");
-      frame.style.visibility = "collapse";
-      document.body.appendChild(frame);
-
-      stop();
-      frame.addEventListener("load", function(event)
+      wnd = UI.currentWindow;
+      tab = wnd.gBrowser.loadOneTab("http://127.0.0.1:1234/test", {inBackground: false});
+      wnd.gBrowser.getBrowserForTab(tab).addEventListener("abp:frameready", function(event)
       {
         start();
-      }, false);
+      }, false, true);
+
+      stop();
     },
     teardown: function()
     {
@@ -53,7 +54,7 @@
       stop();
       server.stop(function()
       {
-        frame.parentElement.removeChild(frame);
+        wnd.gBrowser.removeTab(tab);
 
         server = null;
         frame = null;
@@ -79,7 +80,6 @@
     FilterStorage.addFilter(filter);
 
     let successful = false;
-    let wnd = Utils.getChromeWindow(window);
 
     function onTabOpen(event)
     {
@@ -116,7 +116,7 @@
     wnd.gBrowser.tabContainer.addEventListener("TabClose", onTabClose, false);
     let timeout = window.setTimeout(onTabClose, 1000);    // In case the tab isn't opened
 
-    frame.contentDocument.getElementById("link").click();
+    wnd.gBrowser.getBrowserForTab(tab).contentDocument.getElementById("link").click();
   }
 
   for (let [filter, result] of tests)

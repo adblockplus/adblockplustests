@@ -17,7 +17,7 @@
     ({CustomizableUI}) = require("customizableUI");
   }
 
-  let wnd = Utils.getChromeWindow(window);
+  let wnd = UI.currentWindow;
   let defaultParent = require("appSupport").defaultToolbarPosition.parent;
 
   let toolbox;

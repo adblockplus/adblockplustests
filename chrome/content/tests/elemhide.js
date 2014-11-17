@@ -14,13 +14,18 @@
 
       server.registerPathHandler("/test", function(metadata, response)
       {
-        let body = '<div id="test1" class="testClass">foo</div><p id="test2" class="testClass">bar</p>';
+        let body =
+          '<body onload="document.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));">' +
+            '<div id="test1" class="testClass">foo</div>' +
+            '<p id="test2" class="testClass">bar</p>' +
+          '</body>';
         response.setStatusLine("1.1", "200", "OK");
         response.setHeader("Content-Type", "text/html; charset=utf-8");
         response.bodyOutputStream.write(body, body.length);
       });
 
-      frame = document.createElement("iframe");
+      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "iframe");
+      frame.setAttribute("type", "content");
       frame.style.visibility = "collapse";
       document.body.appendChild(frame);
     },
@@ -121,7 +126,7 @@
       if (stage == 2 || stage == 4)
         expected = ["visible", "visible"];   // Second and forth runs are whitelisted, nothing should be hidden
 
-      frame.onload = function()
+      frame.addEventListener("abp:frameready", function()
       {
         Utils.runAsync(function()
         {
@@ -131,8 +136,8 @@
 
           start();
         });
-      };
-      frame.contentWindow.location.href = "http://localhost:1234/test";
+      }, false, true);
+      frame.setAttribute("src", "http://localhost:1234/test");
     }
     FilterNotifier.addListener(listener);
 

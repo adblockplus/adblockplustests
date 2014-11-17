@@ -11,31 +11,21 @@
 
       function getTestFiles()
       {
-        let module = {};
-        module.wrappedJSObject = module;
-        Services.obs.notifyObservers(module, "adblockplustests-require", "info");
+        function require(module)
+        {
+          let result = {};
+          result.wrappedJSObject = result;
+          Services.obs.notifyObservers(result, "adblockplustests-require", module);
+          return result.exports;
+        }
 
-        let {addonRoot} = module.exports;
-        let uri = Services.io.newURI(addonRoot, null, null).QueryInterface(Components.interfaces.nsIJARURI);
-
-        let result = [];
+        let result;
         if ("test" in QUnit.urlParams)
-          result.push("tests/" + QUnit.urlParams.test + ".js");
+          result = ["tests/" + QUnit.urlParams.test + ".js"];
         else
         {
-          let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
-          zipReader.open(uri.JARFile.QueryInterface(Ci.nsIFileURL).file);
-
-          let enumerator = zipReader.findEntries(null);
-          let prefix = "chrome/content/tests/";
-          while (enumerator.hasMore())
-          {
-            let name = enumerator.getNext();
-            if (name.indexOf(prefix) == 0 && /\.js$/.test(name))
-              result.push("tests/" + name.replace(prefix, ""));
-          }
-
-          zipReader.close();
+          let {getTests} = require("main");
+          result = ["tests/" + test + ".js" for (test of getTests())];
         }
 
         result.sort();
@@ -50,6 +40,12 @@
         script.setAttribute("type", "text/javascript;version=1.7");
         document.documentElement.appendChild(script);
       }
+
+      window.addEventListener("unload", function()
+      {
+        if (QUnit.config.current)
+          QUnit.config.current.testEnvironment.teardown();
+      }, false);
     </script>
   </head>
   <body>

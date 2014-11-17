@@ -3,6 +3,8 @@ id=adblockplustests@adblockplus.org
 basename=adblockplustests
 version=1.0.1a
 author=Wladimir Palant
+options=chrome://adblockplustests/content/settings.xul
+optionsType=2
 
 [homepage]
 default=http://adblockplus.org/en/source

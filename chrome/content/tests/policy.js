@@ -14,11 +14,12 @@
       server = new nsHttpServer();
       server.start(1234);
 
-      frame = document.createElement("iframe");
+      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "iframe");
+      frame.setAttribute("type", "content");
       frame.style.visibility = "collapse";
       document.body.appendChild(frame);
 
-      requestNotifier = new RequestNotifier(window, onPolicyHit);
+      requestNotifier = new RequestNotifier(frame.contentWindow, onPolicyHit);
 
       httpProtocol = Utils.httpProtocol;
       Utils.httpProtocol = {userAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0"};
@@ -92,7 +93,19 @@
     ],
     [
       "Dynamically inserted image button",
-      '<div id="insert"></div><script>window.addEventListener("DOMContentLoaded", function() { var div = document.getElementById("insert"); div.innerHTML = \'<input type="image" id="image" src="test.gif">\'; var image = document.getElementById("image"); image.onload = image.onerror = function () { parent.postMessage("loaded", "*"); }; }, false);<' + '/script>',
+      '<div id="insert"></div>' +
+      '<script>' +
+        'window.addEventListener("DOMContentLoaded", function()' +
+        '{' +
+          'var div = document.getElementById("insert");' +
+          'div.innerHTML = \'<input type="image" id="image" src="test.gif">\';' +
+          'var image = document.getElementById("image");' +
+          'image.onload = image.onerror = function ()' +
+          '{' +
+            'document.dispatchEvent(new CustomEvent("abp:frameready", {bubbles: true}));' +
+          '};' +
+        '}, false);' +
+      '</script>',
       "http://127.0.0.1:1234/test.gif", "image", false, true
     ],
     [
@@ -177,17 +190,48 @@
     ],
     [
       "XMLHttpRequest loading",
-      '<script>var request = new XMLHttpRequest();request.open("GET", "test.xml", false);request.send(null);</script>',
+      '<script>' +
+        'try' +
+        '{' +
+          'var request = new XMLHttpRequest();' +
+          'request.open("GET", "test.xml", false);' +
+          'request.send(null);' +
+        '}' +
+        'catch(e){}' +
+      '</script>',
       "http://127.0.0.1:1234/test.xml", "xmlhttprequest", false, false
     ],
     [
       "XML document loading",
-      '<script>var xmlDoc = document.implementation.createDocument(null, "root", null);xmlDoc.async = false;xmlDoc.load("test.xml")</script>',
+      '<script>' +
+        'try' +
+        '{' +
+          'var xmlDoc = document.implementation.createDocument(null, "root", null);' +
+          'xmlDoc.async = false;' +
+          'xmlDoc.load("test.xml");' +
+        '}' +
+        'catch(e){}' +
+      '</script>',
       "http://127.0.0.1:1234/test.xml", "xmlhttprequest", false, false
     ],
     [
       "Web worker",
-      '<script>try { var worker = new Worker("test.js"); worker.onerror = function() { parent.postMessage("loaded", "*"); }; } catch (e) { parent.postMessage("error", "*"); }</script>',
+      '<script>' +
+        'var e = new CustomEvent(\'abp:frameready\', {bubbles: true});' +
+        'try' +
+        '{' +
+          'var worker = new Worker("test.js");' +
+          'worker.onerror = function(event)' +
+          '{' +
+            'event.preventDefault();' +
+            'document.dispatchEvent(e);' +
+          '};' +
+        '}' +
+        'catch (x)' +
+        '{' +
+          'document.dispatchEvent(e);' +
+        '}' +
+      '</script>',
       "http://127.0.0.1:1234/test.js", "script", false, true
     ],
   ];
@@ -248,7 +292,7 @@
     policyHits.push([wnd, node, item]);
   }
 
-  function runTest([name, body, expectedURL, expectedType, expectedThirdParty, waitForMessage], stage)
+  function runTest([name, body, expectedURL, expectedType, expectedThirdParty, explicitEvent], stage)
   {
     defaultMatcher.clear();
 
@@ -260,6 +304,20 @@
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$~document"));
     if (stage == 5)
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$document,sitekey=" + publickey));
+
+    if (!explicitEvent)
+    {
+      if (body.indexOf("2000/svg") >= 0)
+      {
+        // SVG image: add an onload attribute to the document element
+        body = body.replace(/(<svg\b)/, '$1 onload="this.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));"');
+      }
+      else
+      {
+        // HTML data: wrap it into a <body> tag
+        body = '<body onload="this.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));">' + body + '</body>';
+      }
+    }
 
     let serverHit = false;
     server.registerPathHandler("/test", function(metadata, response)
@@ -328,17 +386,12 @@
       server.registerPathHandler(expectedURL.replace(/http:\/\/[^\/]+/, ""), null);
       equal(serverHit, expectedStatus == "allowed", "Request received by server");
 
-      window.removeEventListener("message", callback, false);
-      frame.removeEventListener("load", callback, false);
+      frame.removeEventListener("abp:frameready", callback, false);
 
       start();
     };
-    frame.contentWindow.location.href = "http://127.0.0.1:1234/test";
-
-    if (waitForMessage)
-      window.addEventListener("message", callback, false, true);
-    else
-      frame.addEventListener("load", callback, false);
+    frame.addEventListener("abp:frameready", callback, false, true);
+    frame.setAttribute("src", "http://127.0.0.1:1234/test");
   }
 
   let stageDescriptions = {

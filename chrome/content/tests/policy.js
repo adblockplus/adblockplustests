@@ -3,6 +3,7 @@
   let server = null;
   let frame = null;
   let requestNotifier = null;
+  let httpProtocol = null;
 
   module("Content policy", {
     setup: function()
@@ -18,6 +19,9 @@
       document.body.appendChild(frame);
 
       requestNotifier = new RequestNotifier(window, onPolicyHit);
+
+      httpProtocol = Utils.httpProtocol;
+      Utils.httpProtocol = {userAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0"};
     },
     teardown: function()
     {
@@ -36,8 +40,29 @@
 
         start();
       });
+
+      Utils.httpProtocol = httpProtocol;
     }
   });
+
+  /*
+  -----BEGIN RSA PRIVATE KEY-----
+  MIIBOQIBAAJBALZc50pEXnz9TSRozwM04rryuaXl/wgUFqV9FHq8HDlkdKvRU0hX
+  hb/AKrSpCJ0NCxHtal1l/kHYlHG9e7Ev6+MCAwEAAQJBALRxYs5irhgAz2b6afOj
+  TcFr0PRtipckwW/IPw5euZKyvswEJt/tWDv4OdmDnRe8FSy6FG2Got3zxvaxYdc3
+  AXkCIQDfFGcytIVq3sbdF3lmhzcXf29R4Hrxg/eoByAKabxknwIhANFGSNMOGPt6
+  JRajfB9XmsltQJzbkr2sfHgjMN2FLM49AiAH6tt2yz1o+5snQawHXYkxBk7XIxZ5
+  9+sURZx3giUzlQIfXF+pxX9zh41i0ZtYLn181WxkGNjS7OY2CtF9wEoIfQIgcHuf
+  shh1qrvuKiXnD9b72PF676laKdzxzX5rX6cZZLA=
+  -----END RSA PRIVATE KEY-----
+  */
+  let publickey = "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALZc50pEXnz9TSRozwM04rryuaXl/wgUFqV9FHq8HDlkdKvRU0hXhb/AKrSpCJ0NCxHtal1l/kHYlHG9e7Ev6+MCAwEAAQ";
+
+  /**
+   * Content:
+   * /test\0127.0.0.1:1234\0Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0
+   */
+  let adblockkey = "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALZc50pEXnz9TSRozwM04rryuaXl/wgUFqV9FHq8HDlkdKvRU0hXhb/AKrSpCJ0NCxHtal1l/kHYlHG9e7Ev6+MCAwEAAQ==_gM4C/j8KkD2byPeP+THXk1GbLTUm5y+5jbdhcMtnzPMgImIfge0dGCtfU9cxLpe8BnqnEGNhTxpuu4pZxjOHYQ==";
 
   let tests = [
     [
@@ -217,7 +242,7 @@
     {
       // Ignore duplicate policy calls (possible due to prefetching)
       let [prevWnd, prevNode, prevItem] = policyHits[policyHits.length - 1];
-      if (prevWnd == wnd && prevItem.location == item.location && prevItem.type == item.type &&  prevItem.docDomain == item.docDomain)
+      if (prevWnd == wnd && prevItem.location == item.location && prevItem.type == item.type && prevItem.docDomain == item.docDomain)
         policyHits.pop();
     }
     policyHits.push([wnd, node, item]);
@@ -233,6 +258,8 @@
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$document"));
     if (stage == 4)
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$~document"));
+    if (stage == 5)
+      defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$document,sitekey=" + publickey));
 
     let serverHit = false;
     server.registerPathHandler("/test", function(metadata, response)
@@ -241,7 +268,12 @@
 
       let contentType = "text/html";
       if (body.indexOf("2000/svg") >= 0)
+      {
         contentType = "image/svg+xml";
+        body = body.replace(/^<svg/, "<svg data-adblockkey='" + adblockkey + "'");
+      }
+      else
+        body = "<html data-adblockkey='" + adblockkey + "'>" + body + "</html>";
       response.setHeader("Content-Type", contentType + "; charset=utf-8");
 
       response.bodyOutputStream.write(body, body.length);
@@ -273,7 +305,9 @@
       let expectedStatus = "allowed";
       if (stage == 3)
         equal(policyHits.length, 0, "Number of policy hits");
-      else
+      // We cannot rely on the correctness of policy hits for sitekey filters due to blocking
+      // filter hits being counted even if the resource doesn't end up getting blocked
+      else if (stage != 5)
       {
         equal(policyHits.length, 1, "Number of policy hits");
         if (policyHits.length == 1)
@@ -312,6 +346,7 @@
     2: "running with filter %S",
     3: "running with filter %S and site exception",
     4: "running with filter %S and exception not applicable to sites",
+    5: "running with filter %S and sitekey exception"
   };
 
   for (let test = 0; test < tests.length; test++)

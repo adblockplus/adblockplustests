@@ -38,6 +38,9 @@
         result.push("contentType=" + filter.contentType);
         result.push("matchCase=" + filter.matchCase);
 
+        let sitekeys = filter.sitekeys || [];
+        result.push("sitekeys=" + sitekeys.slice().sort().join("|"));
+
         result.push("thirdParty=" + filter.thirdParty);
         if (filter instanceof BlockingFilter)
         {
@@ -93,6 +96,7 @@
       addProperty("matchCase", "false");
       addProperty("thirdParty", "null");
       addProperty("domains", "");
+      addProperty("sitekeys", "");
     }
     if (type == "filterlist")
     {
@@ -210,9 +214,9 @@
 
   test("Filter options", function()
   {
-    compareFilter("bla$match-case,script,other,third-party,domain=foo.com", ["type=filterlist", "text=bla$match-case,script,other,third-party,domain=foo.com", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=FOO.COM"]);
+    compareFilter("bla$match-case,script,other,third-party,domain=foo.com,sitekey=foo", ["type=filterlist", "text=bla$match-case,script,other,third-party,domain=foo.com,sitekey=foo", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=FOO.COM", "sitekeys=FOO"]);
     compareFilter("bla$~match-case,~script,~other,~third-party,domain=~bar.com", ["type=filterlist", "text=bla$~match-case,~script,~other,~third-party,domain=~bar.com", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER) | t.DOCUMENT), "thirdParty=false", "domains=~BAR.COM"]);
-    compareFilter("@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com", ["type=whitelist", "text=@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=BAR.COM|FOO.COM|~BAR.FOO.COM|~FOO.BAR.COM"]);
+    compareFilter("@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com,sitekey=foo|bar", ["type=whitelist", "text=@@bla$match-case,script,other,third-party,domain=foo.com|bar.com|~bar.foo.com|~foo.bar.com,sitekey=foo|bar", "regexp=bla", "matchCase=true", "contentType=" + (t.SCRIPT | t.OTHER), "thirdParty=true", "domains=BAR.COM|FOO.COM|~BAR.FOO.COM|~FOO.BAR.COM", "sitekeys=BAR|FOO"]);
 
     // background and image should be the same for backwards compatibility
     compareFilter("bla$image", ["type=filterlist", "text=bla$image", "regexp=bla", "contentType=" + (t.IMAGE)]);

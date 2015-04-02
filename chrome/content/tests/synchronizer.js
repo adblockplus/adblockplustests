@@ -11,6 +11,9 @@
 
       prepareFilterComponents.call(this);
       preparePrefs.call(this);
+
+      Synchronizer.init();
+
       setupVirtualTime.call(this, function(wrapTimer)
       {
         let SynchronizerModule = getModuleGlobal("synchronizer");

@@ -293,8 +293,8 @@
   test("Exception rules", function()
   {
     testMatch("@@test", "http://test/", "DOCUMENT", null, false, null, false);
-    testMatch("@@http://test*", "http://test/", "DOCUMENT", null, false, null, true);
-    testMatch("@@ftp://test*", "ftp://test/", "DOCUMENT", null, false, null, true);
+    testMatch("@@http://test*", "http://test/", "DOCUMENT", null, false, null, false);
+    testMatch("@@ftp://test*", "ftp://test/", "DOCUMENT", null, false, null, false);
     testMatch("@@test$document", "http://test/", "DOCUMENT", null, false, null, true);
     testMatch("@@test$document,image", "http://test/", "DOCUMENT", null, false, null, true);
     testMatch("@@test$~image", "http://test/", "DOCUMENT", null, false, null, false);

@@ -33,6 +33,7 @@
 
       Prefs.notificationurl = "http://example.com/notification.json";
       Prefs.notificationdata = {};
+      Prefs.notifications_ignoredcategories = [];
 
       // Replace Math.random() function
       let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
@@ -374,6 +375,54 @@
     deepEqual(Notification.getNextToShow("http://foo.com"), withURLFilterFoo, "URL-specific notification is retrieved");
     deepEqual(Notification.getNextToShow("http://foo.com"), null, "URL-specific notification is not retrieved");
     deepEqual(Notification.getNextToShow("http://www.example.com"), subdomainURLFilter, "URL-specific notification matches subdomain");
+  });
+
+  test("Global opt-out", function()
+  {
+    Notification.toggleIgnoreCategory("*", true);
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") != -1, "Force enable global opt-out");
+    Notification.toggleIgnoreCategory("*", true);
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") != -1, "Force enable global opt-out (again)");
+    Notification.toggleIgnoreCategory("*", false);
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") == -1, "Force disable global opt-out");
+    Notification.toggleIgnoreCategory("*", false);
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") == -1, "Force disable global opt-out (again)");
+    Notification.toggleIgnoreCategory("*");
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") != -1, "Toggle enable global opt-out");
+    Notification.toggleIgnoreCategory("*");
+    ok(Prefs.notifications_ignoredcategories.indexOf("*") == -1, "Toggle disable global opt-out");
+
+    Prefs.notifications_showui = false;
+    Notification.toggleIgnoreCategory("*", false);
+    ok(!Prefs.notifications_showui, "Opt-out UI will not be shown if global opt-out hasn't been enabled yet");
+    Notification.toggleIgnoreCategory("*", true);
+    ok(Prefs.notifications_showui, "Opt-out UI will be shown after enabling global opt-out");
+    Notification.toggleIgnoreCategory("*", false);
+    ok(Prefs.notifications_showui, "Opt-out UI will be shown after enabling global opt-out even if it got disabled again");
+
+    let information = fixConstructors({
+      id: 1,
+      type: "information"
+    });
+    let critical = fixConstructors({
+      id: 2,
+      type: "critical"
+    });
+
+    Notification.toggleIgnoreCategory("*", true);
+    registerHandler([information]);
+    testRunner.runScheduledTasks(1);
+
+    deepEqual(Notification.getNextToShow(), null, "Information notifications are ignored after enabling global opt-out");
+    Notification.toggleIgnoreCategory("*", false);
+    deepEqual(Notification.getNextToShow(), information, "Information notifications are shown after disabling global opt-out");
+
+    Notification.toggleIgnoreCategory("*", true);
+    Prefs.notificationdata = {};
+    registerHandler([critical]);
+    testRunner.runScheduledTasks(1);
+
+    deepEqual(Notification.getNextToShow(), critical, "Critical notifications are not ignored");
   });
 
   module("Notification localization");

@@ -349,18 +349,18 @@
   {
     let withURLFilterFoo = fixConstructors({
       id: 1,
-      urlFilters: ["foo.com"]
+      urlFilters: ["foo.com$document"]
     });
     let withoutURLFilter = fixConstructors({
       id: 2
     });
     let withURLFilterBar = fixConstructors({
       id: 3,
-      urlFilters: ["bar.com"]
+      urlFilters: ["bar.com$document"]
     });
     let subdomainURLFilter = fixConstructors({
       id: 4,
-      urlFilters: ["||example.com"]
+      urlFilters: ["||example.com$document"]
     });
 
     registerHandler([

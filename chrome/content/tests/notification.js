@@ -6,6 +6,20 @@
   let originalInfo;
   let info = require("info");
 
+  function showNotifications(url)
+  {
+    let shownNotifications = [];
+    function showListener(notification)
+    {
+      shownNotifications.push(notification);
+      Notification.markAsShown(notification.id);
+    }
+    Notification.addShowListener(showListener);
+    Notification.showNext(url);
+    Notification.removeShowListener(showListener);
+    return shownNotifications;
+  }
+
   module("Notification handling",
   {
     setup: function()
@@ -40,6 +54,10 @@
       this._origRandom = DownloaderGlobal.Math.random;
       DownloaderGlobal.Math.random = () => randomResult;
       randomResult = 0.5;
+
+      let NotificationGlobal = getModuleGlobal("notification");
+      this._origShowListeners = NotificationGlobal.showListeners;
+      NotificationGlobal.showListeners = [];
     },
 
     teardown: function()
@@ -56,6 +74,13 @@
         let DownloaderGlobal = Cu.getGlobalForObject(getModuleGlobal("downloader"));
         DownloaderGlobal.Math.random = this._origRandom;
         delete this._origRandom;
+      }
+
+      if (this._origShowListeners)
+      {
+        let NotificationGlobal = getModuleGlobal("notification");
+        NotificationGlobal.showListeners = this._origShowListeners;
+        delete this._origShowListeners;
       }
 
       Notification.init();
@@ -89,7 +114,7 @@
 
   test("No data", function()
   {
-    equal(Notification.getNextToShow(), null, "null should be returned if there is no data");
+    deepEqual(showNotifications(), [], "No notifications should be returned if there is no data");
   });
 
   test("Single notification", function()
@@ -103,8 +128,8 @@
     registerHandler([information]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), information, "The notification is shown");
-    equal(Notification.getNextToShow(), null, "Informational notifications aren't shown more than once");
+    deepEqual(showNotifications(), [information], "The notification is shown");
+    deepEqual(showNotifications(), [], "Informational notifications aren't shown more than once");
   });
 
   test("Information and critical", function()
@@ -123,8 +148,8 @@
     registerHandler([information, critical]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), critical, "The critical notification is given priority");
-    deepEqual(Notification.getNextToShow(), critical, "Critical notifications can be shown multiple times");
+    deepEqual(showNotifications(), [critical], "The critical notification is given priority");
+    deepEqual(showNotifications(), [critical], "Critical notifications can be shown multiple times");
   });
 
   test("No type", function()
@@ -137,8 +162,8 @@
     registerHandler([information]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), information, "The notification is shown");
-    equal(Notification.getNextToShow(), null, "Notification is treated as type information");
+    deepEqual(showNotifications(), [information], "The notification is shown");
+    deepEqual(showNotifications(), [], "Notification is treated as type information");
   });
 
   test("Target selection", function()
@@ -194,9 +219,9 @@
       registerHandler([information]);
       testRunner.runScheduledTasks(1);
 
-      let expected = (result ? information : null);
-      deepEqual(Notification.getNextToShow(), expected, "Selected notification for " + JSON.stringify(information.targets));
-      deepEqual(Notification.getNextToShow(), null, "No notification on second call");
+      let expected = (result ? [information] : []);
+      deepEqual(showNotifications(), expected, "Selected notification for " + JSON.stringify(information.targets));
+      deepEqual(showNotifications(), [], "No notification on second call");
     }
 
     function pairs(array)
@@ -223,9 +248,9 @@
       registerHandler([information]);
       testRunner.runScheduledTasks(1);
 
-      let expected = (result1 || result2 ? information : null)
-      deepEqual(Notification.getNextToShow(), expected, "Selected notification for " + JSON.stringify(information.targets));
-      deepEqual(Notification.getNextToShow(), null, "No notification on second call");
+      let expected = (result1 || result2 ? [information] : [])
+      deepEqual(showNotifications(), expected, "Selected notification for " + JSON.stringify(information.targets));
+      deepEqual(showNotifications(), [], "No notification on second call");
 
       information = fixConstructors({
         id: 1,
@@ -244,8 +269,8 @@
       registerHandler([information, critical]);
       testRunner.runScheduledTasks(1);
 
-      expected = (result2 ? critical : (result1 ? information : null));
-      deepEqual(Notification.getNextToShow(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
+      expected = (result2 ? [critical] : (result1 ? [information] : []));
+      deepEqual(showNotifications(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
     }
   });
 
@@ -371,10 +396,10 @@
     ]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), withoutURLFilter, "URL-specific notifications are skipped");
-    deepEqual(Notification.getNextToShow("http://foo.com"), withURLFilterFoo, "URL-specific notification is retrieved");
-    deepEqual(Notification.getNextToShow("http://foo.com"), null, "URL-specific notification is not retrieved");
-    deepEqual(Notification.getNextToShow("http://www.example.com"), subdomainURLFilter, "URL-specific notification matches subdomain");
+    deepEqual(showNotifications(), [withoutURLFilter], "URL-specific notifications are skipped");
+    deepEqual(showNotifications("http://foo.com"), [withURLFilterFoo], "URL-specific notification is retrieved");
+    deepEqual(showNotifications("http://foo.com"), [], "URL-specific notification is not retrieved");
+    deepEqual(showNotifications("http://www.example.com"), [subdomainURLFilter], "URL-specific notification matches subdomain");
   });
 
   test("Global opt-out", function()
@@ -413,16 +438,16 @@
     registerHandler([information]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), null, "Information notifications are ignored after enabling global opt-out");
+    deepEqual(showNotifications(), [], "Information notifications are ignored after enabling global opt-out");
     Notification.toggleIgnoreCategory("*", false);
-    deepEqual(Notification.getNextToShow(), information, "Information notifications are shown after disabling global opt-out");
+    deepEqual(showNotifications(), [information], "Information notifications are shown after disabling global opt-out");
 
     Notification.toggleIgnoreCategory("*", true);
     Prefs.notificationdata = {};
     registerHandler([critical]);
     testRunner.runScheduledTasks(1);
 
-    deepEqual(Notification.getNextToShow(), critical, "Critical notifications are not ignored");
+    deepEqual(showNotifications(), [critical], "Critical notifications are not ignored");
   });
 
   module("Notification localization");

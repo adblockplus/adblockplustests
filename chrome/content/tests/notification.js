@@ -296,34 +296,35 @@
 
   test("Expiration interval", function()
   {
+    let initialDelay = 1 / 60;
     let tests = [
       {
         randomResult: 0.5,
-        requests: [0.2, 24.2, 48.2]
+        requests: [initialDelay, initialDelay + 24, initialDelay + 48]
       },
       {
         randomResult: 0,        // Changes interval by factor 0.8 (19.2 hours)
-        requests: [0.2, 20.2, 40.2]
+        requests: [initialDelay, initialDelay + 20, initialDelay + 40]
       },
       {
         randomResult: 1,        // Changes interval by factor 1.2 (28.8 hours)
-        requests: [0.2, 29.2, 58.2]
+        requests: [initialDelay, initialDelay + 29, initialDelay + 58]
       },
       {
         randomResult: 0.25,     // Changes interval by factor 0.9 (21.6 hours)
-        requests: [0.2, 22.2, 44.2]
+        requests: [initialDelay, initialDelay + 22, initialDelay + 44]
       },
       {
         randomResult: 0.5,
-        skipAfter: 5.2,
+        skipAfter: initialDelay + 5,
         skip: 10,               // Short break should not increase soft expiration
-        requests: [0.2, 24.2]
+        requests: [initialDelay, initialDelay + 24]
       },
       {
         randomResult: 0.5,
-        skipAfter: 5.2,
+        skipAfter: initialDelay + 5,
         skip: 30,               // Long break should increase soft expiration, hitting hard expiration
-        requests: [0.2, 48.2]
+        requests: [initialDelay, initialDelay + 48]
       }
     ];
 

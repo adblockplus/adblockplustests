@@ -223,13 +223,33 @@
       deepEqual(showNotifications(), expected, "Selected notification for " + JSON.stringify(information.targets));
       deepEqual(showNotifications(), [], "No notification on second call");
     }
+  });
+
+  test("Multiple targets", function()
+  {
+    let targets = [
+      ["extension", "adblockpluschrome", true],
+      ["extension", "adblockplus", false],
+      ["extensionMinVersion", "1.4", true],
+      ["extensionMinVersion", "1.5", false],
+      ["application", "chrome", true],
+      ["application", "firefox", false],
+      ["applicationMinVersion", "27", true],
+      ["applicationMinVersion", "28", false],
+      ["platform", "chromium", true],
+      ["platform", "gecko", false],
+      ["platformMinVersion", "12", true],
+      ["platformMinVersion", "13", false],
+    ];
 
     function pairs(array)
     {
       for (let element1 of array)
         for (let element2 of array)
-          yield [element1, element2];
+          if (element1 != element2)
+            yield [element1, element2];
     }
+
     for (let [[propName1, value1, result1], [propName2, value2, result2]] in pairs(targets))
     {
       let targetInfo1 = {};
@@ -250,27 +270,6 @@
 
       let expected = (result1 || result2 ? [information] : [])
       deepEqual(showNotifications(), expected, "Selected notification for " + JSON.stringify(information.targets));
-      deepEqual(showNotifications(), [], "No notification on second call");
-
-      information = fixConstructors({
-        id: 1,
-        type: "information",
-        message: {"en-US": "Information"},
-        targets: [targetInfo1]
-      });
-      let critical = fixConstructors({
-        id: 2,
-        type: "critical",
-        message: {"en-US": "Critical"},
-        targets: [targetInfo2]
-      });
-
-      Prefs.notificationdata = {};
-      registerHandler([information, critical]);
-      testRunner.runScheduledTasks(1);
-
-      expected = (result2 ? [critical] : (result1 ? [information] : []));
-      deepEqual(showNotifications(), expected, "Selected notification for information with " + JSON.stringify(information.targets) + " and critical with " + JSON.stringify(critical.targets));
     }
   });
 

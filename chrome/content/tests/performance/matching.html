@@ -68,7 +68,7 @@
     function runTest()
     {
       for (let address of addresses)
-        defaultMatcher.matchesAny(address, "IMAGE", null, false);
+        defaultMatcher.matchesAny(address, RegExpFilter.typeMap.IMAGE, null, false);
     }
 
     function cleanup()

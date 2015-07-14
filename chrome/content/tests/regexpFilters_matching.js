@@ -7,7 +7,7 @@
     function testMatch_internal(text, location, contentType, docDomain, thirdParty, sitekey, expected)
     {
       let filter = Filter.fromText(text);
-      let result = filter.matches(location, contentType, docDomain, thirdParty, sitekey);
+      let result = filter.matches(location, RegExpFilter.typeMap[contentType], docDomain, thirdParty, sitekey);
       equal(!!result, expected, '"' + text + '".matches(' + location + ", " + contentType + ", " + docDomain + ", " + (thirdParty ? "third-party" : "first-party") + ", " + (sitekey || "no-sitekey") + ")");
     }
     testMatch_internal(text, location, contentType, docDomain, thirdParty, sitekey, expected);

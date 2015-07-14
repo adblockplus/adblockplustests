@@ -30,7 +30,7 @@
     for (let filter of filters)
       matcher.add(Filter.fromText(filter));
 
-    let result = matcher.matchesAny(location, contentType, docDomain, thirdParty, sitekey);
+    let result = matcher.matchesAny(location, RegExpFilter.typeMap[contentType], docDomain, thirdParty, sitekey);
     if (result)
       result = result.text;
 
@@ -42,7 +42,7 @@
       for (let filter of filters)
         combinedMatcher.add(Filter.fromText(filter));
 
-      let result = combinedMatcher.matchesAny(location, contentType, docDomain, thirdParty, sitekey);
+      let result = combinedMatcher.matchesAny(location, RegExpFilter.typeMap[contentType], docDomain, thirdParty, sitekey);
       if (result)
         result = result.text;
 
@@ -57,7 +57,7 @@
 
   function cacheCheck(matcher, location, contentType, docDomain, thirdParty, expected)
   {
-    let result = matcher.matchesAny(location, contentType, docDomain, thirdParty);
+    let result = matcher.matchesAny(location, RegExpFilter.typeMap[contentType], docDomain, thirdParty);
     if (result)
       result = result.text;
 

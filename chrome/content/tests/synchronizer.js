@@ -59,6 +59,8 @@
     subscription.requiredVersion = null;
   }
 
+  let initialDelay = 1 / 60;
+
   test("Downloads of one subscription", function()
   {
     let subscription = Subscription.fromURL("http://example.com/subscription");
@@ -73,9 +75,9 @@
 
     testRunner.runScheduledTasks(50);
     deepEqual(requests, [
-      [0.1, "GET", "/subscription"],
-      [24.1, "GET", "/subscription"],
-      [48.1, "GET", "/subscription"],
+      [0 + initialDelay, "GET", "/subscription"],
+      [24 + initialDelay, "GET", "/subscription"],
+      [48 + initialDelay, "GET", "/subscription"],
     ], "Requests after 50 hours");
   });
 
@@ -102,12 +104,12 @@
 
     testRunner.runScheduledTasks(55);
     deepEqual(requests, [
-      [0.1, "GET", "/subscription1"],
-      [2.1, "GET", "/subscription2"],
-      [24.1, "GET", "/subscription1"],
-      [26.1, "GET", "/subscription2"],
-      [48.1, "GET", "/subscription1"],
-      [50.1, "GET", "/subscription2"],
+      [0 + initialDelay, "GET", "/subscription1"],
+      [2 + initialDelay, "GET", "/subscription2"],
+      [24 + initialDelay, "GET", "/subscription1"],
+      [26 + initialDelay, "GET", "/subscription2"],
+      [48 + initialDelay, "GET", "/subscription1"],
+      [50 + initialDelay, "GET", "/subscription2"],
     ], "Requests after 55 hours");
   });
 
@@ -190,63 +192,63 @@
       {
         expiration: "default",
         randomResult: 0.5,
-        requests: [0.1, 5 * 24 + 0.1]
+        requests: [0 + initialDelay, 5 * 24 +  initialDelay]
       },
       {
         expiration: "1 hours",  // Minimal expiration interval
         randomResult: 0.5,
-        requests: [0.1, 1.1, 2.1, 3.1]
+        requests: [0 + initialDelay, 1 + initialDelay, 2 + initialDelay, 3 + initialDelay]
       },
       {
         expiration: "26 hours",
         randomResult: 0.5,
-        requests: [0.1, 26.1]
+        requests: [0 + initialDelay, 26 + initialDelay]
       },
       {
         expiration: "2 days",
         randomResult: 0.5,
-        requests: [0.1, 48.1]
+        requests: [0 + initialDelay, 48 + initialDelay]
       },
       {
         expiration: "20 days",  // Too large, will be corrected
         randomResult: 0.5,
-        requests: [0.1, 14 * 24 + 0.1]
+        requests: [0 + initialDelay, 14 * 24 + initialDelay]
       },
       {
         expiration: "35 hours",
         randomResult: 0,        // Changes interval by factor 0.8
-        requests: [0.1, 28.1]
+        requests: [0 + initialDelay, 28 + initialDelay]
       },
       {
         expiration: "35 hours",
         randomResult: 1,        // Changes interval by factor 1.2
-        requests: [0.1, 42.1]
+        requests: [0 + initialDelay, 42 + initialDelay]
       },
       {
         expiration: "35 hours",
         randomResult: 0.25,     // Changes interval by factor 0.9
-        requests: [0.1, 32.1]
+        requests: [0 + initialDelay, 32 + initialDelay]
       },
       {
         expiration: "40 hours",
         randomResult: 0.5,
-        skipAfter: 5.1,
+        skipAfter: 5 + initialDelay,
         skip: 10,               // Short break should not increase soft expiration
-        requests: [0.1, 40.1]
+        requests: [0 + initialDelay, 40 + initialDelay]
       },
       {
         expiration: "40 hours",
         randomResult: 0.5,
-        skipAfter: 5.1,
+        skipAfter: 5 + initialDelay,
         skip: 30,               // Long break should increase soft expiration
-        requests: [0.1, 70.1]
+        requests: [0 + initialDelay, 70 + initialDelay]
       },
       {
         expiration: "40 hours",
         randomResult: 0.5,
-        skipAfter: 5.1,
+        skipAfter: 5 + initialDelay,
         skip: 80,               // Hitting hard expiration, immediate download
-        requests: [0.1, 85.1]
+        requests: [0 + initialDelay, 85 + initialDelay]
       }
     ]
 
@@ -355,7 +357,7 @@
     resetSubscription(subscription);
     testRunner.runScheduledTasks(15);
     equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Redirect followed");
-    deepEqual(requests, [0.1, 8.1], "Resulting requests");
+    deepEqual(requests, [0 + initialDelay, 8 + initialDelay], "Resulting requests");
 
     testRunner.registerHandler("/redirected", function(metadata)
     {
@@ -390,7 +392,7 @@
     });
 
     testRunner.runScheduledTasks(100);
-    deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Continue trying if the fallback doesn't respond");
+    deepEqual(requests, [0 + initialDelay, 24 + initialDelay, 48 + initialDelay, 72 + initialDelay, 96 + initialDelay], "Continue trying if the fallback doesn't respond");
 
     // Fallback giving "Gone" response
 
@@ -404,7 +406,7 @@
     });
 
     testRunner.runScheduledTasks(100);
-    deepEqual(requests, [0.1, 24.1, 48.1], "Stop trying if the fallback responds with Gone");
+    deepEqual(requests, [0 + initialDelay, 24 + initialDelay, 48 + initialDelay], "Stop trying if the fallback responds with Gone");
     equal(fallbackParams, "http://example.com/subscription&0&404", "Fallback arguments");
 
     // Fallback redirecting to a missing file
@@ -421,7 +423,7 @@
     });
     testRunner.runScheduledTasks(100);
     equal(FilterStorage.subscriptions[0].url, "http://example.com/subscription", "Ignore invalid redirect from fallback");
-    deepEqual(requests, [0.1, 24.1, 48.1, 72.1, 96.1], "Requests not affected by invalid redirect");
+    deepEqual(requests, [0 + initialDelay, 24 + initialDelay, 48 + initialDelay, 72 + initialDelay, 96 + initialDelay], "Requests not affected by invalid redirect");
 
     // Fallback redirecting to an existing file
 
@@ -436,8 +438,8 @@
 
     testRunner.runScheduledTasks(100);
     equal(FilterStorage.subscriptions[0].url, "http://example.com/redirected", "Valid redirect from fallback is followed");
-    deepEqual(requests, [0.1, 24.1, 48.1], "Stop polling original URL after a valid redirect from fallback");
-    deepEqual(redirectedRequests, [48.1, 72.1, 96.1], "Request new URL after a valid redirect from fallback");
+    deepEqual(requests, [0 + initialDelay, 24 + initialDelay, 48 + initialDelay], "Stop polling original URL after a valid redirect from fallback");
+    deepEqual(redirectedRequests, [48 + initialDelay, 72 + initialDelay, 96 + initialDelay], "Request new URL after a valid redirect from fallback");
 
     // Checksum mismatch
 
@@ -488,9 +490,9 @@
     testRunner.runScheduledTasks(2);
 
     equal(subscription.downloadStatus, "synchronize_ok", "downloadStatus after successful download");
-    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastDownload after successful download");
-    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after successful download");
-    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 1.1 * MILLIS_IN_HOUR, "lastCheck after successful download");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime +  initialDelay * MILLIS_IN_HOUR, "lastDownload after successful download");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime +  initialDelay * MILLIS_IN_HOUR, "lastSuccess after successful download");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + (1 +  initialDelay) * MILLIS_IN_HOUR, "lastCheck after successful download");
     equal(subscription.errors, 0, "errors after successful download");
 
     testRunner.registerHandler("/subscription", function(metadata)
@@ -501,9 +503,9 @@
     testRunner.runScheduledTasks(2);
 
     equal(subscription.downloadStatus, "synchronize_connection_error", "downloadStatus after connection error");
-    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 2.1 * MILLIS_IN_HOUR, "lastDownload after connection error");
-    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after connection error");
-    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 3.1 * MILLIS_IN_HOUR, "lastCheck after connection error");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + (2 +  initialDelay) * MILLIS_IN_HOUR, "lastDownload after connection error");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + initialDelay * MILLIS_IN_HOUR, "lastSuccess after connection error");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + (3 + initialDelay) * MILLIS_IN_HOUR, "lastCheck after connection error");
     equal(subscription.errors, 1, "errors after connection error");
 
     testRunner.registerHandler("/subscription", function(metadata)
@@ -514,9 +516,9 @@
     testRunner.runScheduledTasks(24);
 
     equal(subscription.downloadStatus, "synchronize_connection_error", "downloadStatus after download error");
-    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + 26.1 * MILLIS_IN_HOUR, "lastDownload after download error");
-    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + 0.1 * MILLIS_IN_HOUR, "lastSuccess after download error");
-    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + 27.1 * MILLIS_IN_HOUR, "lastCheck after download error");
+    equal(subscription.lastDownload * MILLIS_IN_SECOND, startTime + (26 + initialDelay) * MILLIS_IN_HOUR, "lastDownload after download error");
+    equal(subscription.lastSuccess * MILLIS_IN_SECOND, startTime + initialDelay * MILLIS_IN_HOUR, "lastSuccess after download error");
+    equal(subscription.lastCheck * MILLIS_IN_SECOND, startTime + (27 + initialDelay) * MILLIS_IN_HOUR, "lastCheck after download error");
     equal(subscription.errors, 2, "errors after download error");
   });
 })();

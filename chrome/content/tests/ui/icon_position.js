@@ -8,13 +8,13 @@
   let usingShim = false;
   try
   {
-    ({CustomizableUI}) = Cu.import("resource:///modules/CustomizableUI.jsm", null);
+    ({CustomizableUI} = Cu.import("resource:///modules/CustomizableUI.jsm", null));
   }
   catch (e)
   {
     usingShim = true;
     // No built-in CustomizableUI API, use our own implementation.
-    ({CustomizableUI}) = require("customizableUI");
+    ({CustomizableUI} = require("customizableUI"));
   }
 
   let wnd = UI.currentWindow;

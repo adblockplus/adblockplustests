@@ -44,7 +44,8 @@
       window.addEventListener("unload", function()
       {
         if (QUnit.config.current)
-          QUnit.config.current.testEnvironment.teardown();
+          for (let callback of QUnit.config.current.hooks("afterEach").reverse())
+            callback();
       }, false);
     </script>
   </head>

@@ -65,6 +65,8 @@
    */
   let adblockkey = "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALZc50pEXnz9TSRozwM04rryuaXl/wgUFqV9FHq8HDlkdKvRU0hXhb/AKrSpCJ0NCxHtal1l/kHYlHG9e7Ev6+MCAwEAAQ==_gM4C/j8KkD2byPeP+THXk1GbLTUm5y+5jbdhcMtnzPMgImIfge0dGCtfU9cxLpe8BnqnEGNhTxpuu4pZxjOHYQ==";
 
+  let dispatchReadyEvent = "document.dispatchEvent(new CustomEvent('abp:frameready', {bubbles: true}));";
+
   let tests = [
     [
       "HTML image with relative URL",
@@ -102,7 +104,7 @@
           'var image = document.getElementById("image");' +
           'image.onload = image.onerror = function ()' +
           '{' +
-            'document.dispatchEvent(new CustomEvent("abp:frameready", {bubbles: true}));' +
+            dispatchReadyEvent +
           '};' +
         '}, false);' +
       '</script>',
@@ -217,19 +219,18 @@
     [
       "Web worker",
       '<script>' +
-        'var e = new CustomEvent(\'abp:frameready\', {bubbles: true});' +
         'try' +
         '{' +
           'var worker = new Worker("test.js");' +
           'worker.onerror = function(event)' +
           '{' +
             'event.preventDefault();' +
-            'document.dispatchEvent(e);' +
+            dispatchReadyEvent +
           '};' +
         '}' +
-        'catch (x)' +
+        'catch (e)' +
         '{' +
-          'document.dispatchEvent(e);' +
+          dispatchReadyEvent +
         '}' +
       '</script>',
       "http://127.0.0.1:1234/test.js", "script", false, true
@@ -309,13 +310,14 @@
     {
       if (body.indexOf("2000/svg") >= 0)
       {
-        // SVG image: add an onload attribute to the document element
-        body = body.replace(/(<svg\b)/, '$1 onload="this.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));"');
+        // SVG image: add an onload attribute to the document element and keep
+        // polling until the document is really loaded.
+        body = body.replace(/(<svg\b)/, '$1 onload="if (document.readyState != \'complete\') setTimeout(arguments.callee.bind(this), 0); else ' + dispatchReadyEvent + '"');
       }
       else
       {
         // HTML data: wrap it into a <body> tag
-        body = '<body onload="this.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));">' + body + '</body>';
+        body = '<body onload="' + dispatchReadyEvent + '">' + body + '</body>';
       }
     }
 

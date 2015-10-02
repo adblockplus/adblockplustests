@@ -92,7 +92,11 @@
     }
     if (type == "whitelist" || type == "filterlist")
     {
-      addProperty("contentType", 0x7FFFFFFF & ~(RegExpFilter.typeMap.DOCUMENT | RegExpFilter.typeMap.ELEMHIDE | RegExpFilter.typeMap.POPUP));
+      addProperty("contentType", 0x7FFFFFFF & ~(
+        RegExpFilter.typeMap.DOCUMENT | RegExpFilter.typeMap.ELEMHIDE |
+        RegExpFilter.typeMap.POPUP | RegExpFilter.typeMap.GENERICHIDE |
+        RegExpFilter.typeMap.GENERICBLOCK
+      ));
       addProperty("matchCase", "false");
       addProperty("thirdParty", "null");
       addProperty("domains", "");
@@ -197,7 +201,7 @@
   });
 
   let t = RegExpFilter.typeMap;
-  let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DOCUMENT | t.POPUP);
+  let defaultTypes = 0x7FFFFFFF & ~(t.ELEMHIDE | t.DOCUMENT | t.POPUP | t.GENERICHIDE | t.GENERICBLOCK);
 
   test("Special characters", function()
   {

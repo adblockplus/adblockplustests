@@ -106,6 +106,13 @@
     [["localhost.###test1"], ["visible", "visible"]],
     [["localhost.,localhost###test1"], ["hidden", "visible"]],
     [["localhost.,foo.###test1"], ["visible", "visible"]],
+
+    [["##div#test1", "@@localhost$generichide"], ["visible", "visible"]],
+    [["##div#test1", "@@localhost$genericblock"], ["hidden", "visible"]],
+    [["localhost##div#test1", "@@localhost$generichide"], ["hidden", "visible"]],
+    [["~example.com##div#test1", "@@localhost$generichide"], ["visible", "visible"]],
+    [["~example.com##div#test1", "@@localhost$genericblock"], ["hidden", "visible"]],
+    [["~example.com,localhost##div#test1", "@@localhost$generichide"], ["hidden", "visible"]],
   ];
 
   function runTest([filters, expected], stage)
@@ -138,11 +145,18 @@
         });
       }, false, true);
       frame.setAttribute("src", "http://localhost:1234/test");
-    }
+    };
     FilterNotifier.addListener(listener);
 
-    for (let filter of filters)
-      ElemHide.add(Filter.fromText(filter));
+    for (let filter_text of filters)
+    {
+      let filter = Filter.fromText(filter_text);
+      if (filter instanceof WhitelistFilter)
+        defaultMatcher.add(filter);
+      else
+        ElemHide.add(filter);
+    }
+
     ElemHide.isDirty = true;
     ElemHide.apply();
   }

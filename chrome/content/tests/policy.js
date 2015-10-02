@@ -297,14 +297,21 @@
   {
     defaultMatcher.clear();
 
-    if (stage > 1)
+    if (stage == 7)
+      defaultMatcher.add(Filter.fromText(expectedURL + "$domain=127.0.0.1"));
+    else if (stage > 1)
       defaultMatcher.add(Filter.fromText(expectedURL));
+
     if (stage == 3)
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$document"));
     if (stage == 4)
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$~document"));
     if (stage == 5)
       defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$document,sitekey=" + publickey));
+    if (stage == 6 || stage == 7)
+      defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$genericblock"));
+    if (stage == 8)
+      defaultMatcher.add(Filter.fromText("@@||127.0.0.1:1234/test|$genericblock,sitekey=" + publickey));
 
     if (!explicitEvent)
     {
@@ -367,7 +374,7 @@
         equal(policyHits.length, 0, "Number of policy hits");
       // We cannot rely on the correctness of policy hits for sitekey filters due to blocking
       // filter hits being counted even if the resource doesn't end up getting blocked
-      else if (stage != 5)
+      else if (stage != 5 && stage != 6 && stage != 8)
       {
         equal(policyHits.length, 1, "Number of policy hits");
         if (policyHits.length == 1)
@@ -401,7 +408,10 @@
     2: "running with filter %S",
     3: "running with filter %S and site exception",
     4: "running with filter %S and exception not applicable to sites",
-    5: "running with filter %S and sitekey exception"
+    5: "running with filter %S and sitekey exception",
+    6: "running with filter %S and $genericblock exception",
+    7: "running with filter %S$domain=127.0.0.1 and $genericblock exception",
+    8: "running with filter %S and $genericblock,sitekey exception"
   };
 
   for (let test = 0; test < tests.length; test++)

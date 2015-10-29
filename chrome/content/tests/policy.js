@@ -387,7 +387,7 @@
           let actualStatus = (item.filter ? "blocked" : "allowed");
 
           equal(actualStatus, expectedStatus, "Request blocked");
-          equal(item.typeDescr.toLowerCase(), expectedType, "Request type");
+          equal(item.type.toLowerCase(), expectedType, "Request type");
           equal(item.thirdParty, expectedThirdParty, "Third-party flag");
           equal(item.docDomain, "127.0.0.1", "Document domain");
         }

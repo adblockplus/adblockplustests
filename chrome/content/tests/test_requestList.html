@@ -170,15 +170,13 @@
         is(frameData[0].entry.toSource(), imageNodeData.toSource(), "Data received for the image should be identical to the result of getDataForNode");
       }
 
-      is(frameNodeData.type, Policy.type.SUBDOCUMENT, "Frame node data: type property");
-      is(frameNodeData.typeDescr, "SUBDOCUMENT", "Frame node data: typeDescr property");
+      is(frameNodeData.type, "SUBDOCUMENT", "Frame node data: type property");
       is(frameNodeData.docDomain, "mochikit", "Frame node data: docDomain property");
       is(frameNodeData.thirdParty, true, "Frame node data: thirdParty property");
       is(frameNodeData.location, "http://127.0.0.1:1234/test1", "Frame node data: location property");
       is(frameNodeData.filter, null, "Frame node data: filter property");
 
-      is(imageNodeData.type, Policy.type.IMAGE, "Image node data: type property");
-      is(imageNodeData.typeDescr, "IMAGE", "Image node data: typeDescr property");
+      is(imageNodeData.type, "IMAGE", "Image node data: type property");
       is(imageNodeData.docDomain, "127.0.0.1", "Image node data: docDomain property");
       is(imageNodeData.thirdParty, false, "Image node data: thirdParty property");
       is(imageNodeData.location, "http://127.0.0.1:1234/test.png", "Image node data: location property");
@@ -221,15 +219,13 @@
         is(frameData[0].entry.toSource(), scriptNodeData.toSource(), "Data received for the script should be identical to the result of getDataForNode");
       }
 
-      is(frameNodeData.type, Policy.type.SUBDOCUMENT, "Frame node data: type property");
-      is(frameNodeData.typeDescr, "SUBDOCUMENT", "Frame node data: typeDescr property");
+      is(frameNodeData.type, "SUBDOCUMENT", "Frame node data: type property");
       is(frameNodeData.docDomain, "mochikit", "Frame node data: docDomain property");
       is(frameNodeData.thirdParty, true, "Frame node data: thirdParty property");
       is(frameNodeData.location, "http://127.0.0.1:1234/test2", "Frame node data: location property");
       is(frameNodeData.filter, null, "Frame node data: filter property");
 
-      is(scriptNodeData.type, Policy.type.SCRIPT, "Script node data: type property");
-      is(scriptNodeData.typeDescr, "SCRIPT", "Script node data: typeDescr property");
+      is(scriptNodeData.type, "SCRIPT", "Script node data: type property");
       is(scriptNodeData.docDomain, "127.0.0.1", "Script node data: docDomain property");
       is(scriptNodeData.thirdParty, false, "Script node data: thirdParty property");
       is(scriptNodeData.location, "http://127.0.0.1:1234/test.js", "Script node data: location property");

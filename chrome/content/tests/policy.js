@@ -14,12 +14,13 @@
       server = new nsHttpServer();
       server.start(1234);
 
-      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "iframe");
+      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "browser");
       frame.setAttribute("type", "content");
+      frame.setAttribute("disablehistory", "true");
       frame.style.visibility = "collapse";
       document.body.appendChild(frame);
 
-      requestNotifier = new RequestNotifier(frame.contentWindow, onPolicyHit);
+      requestNotifier = new RequestNotifier(frame.outerWindowID, onPolicyHit);
 
       httpProtocol = Utils.httpProtocol;
       Utils.httpProtocol = {userAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0"};
@@ -270,7 +271,7 @@
   }
 
   let policyHits = [];
-  function onPolicyHit(wnd, node, item, scanComplete)
+  function onPolicyHit(item, scanComplete)
   {
     if (!item)
       return;
@@ -280,17 +281,17 @@
     {
       return;
     }
-    if (item.filter instanceof WhitelistFilter)
+    if (item.filter && item.filter.substr(0, 2) == "@@")
       return;
 
     if (policyHits.length > 0)
     {
       // Ignore duplicate policy calls (possible due to prefetching)
-      let [prevWnd, prevNode, prevItem] = policyHits[policyHits.length - 1];
-      if (prevWnd == wnd && prevItem.location == item.location && prevItem.type == item.type && prevItem.docDomain == item.docDomain)
+      let prevItem = policyHits[policyHits.length - 1];
+      if (prevItem.location == item.location && prevItem.type == item.type && prevItem.docDomain == item.docDomain)
         policyHits.pop();
     }
-    policyHits.push([wnd, node, item]);
+    policyHits.push(item);
   }
 
   function runTest([name, body, expectedURL, expectedType, expectedThirdParty, explicitEvent], stage)
@@ -367,8 +368,10 @@
     });
 
     policyHits = [];
-    var callback = function()
+    let callback = function()
     {
+      frame.messageManager.removeMessageListener("ready", callback);
+
       let expectedStatus = "allowed";
       if (stage == 3)
         equal(policyHits.length, 0, "Number of policy hits");
@@ -379,7 +382,7 @@
         equal(policyHits.length, 1, "Number of policy hits");
         if (policyHits.length == 1)
         {
-          let [wnd, node, item] = policyHits[0];
+          let item = policyHits[0];
 
           equal(item.location, expectedURL, "Request URL");
 
@@ -395,11 +398,17 @@
       server.registerPathHandler(expectedURL.replace(/http:\/\/[^\/]+/, ""), null);
       equal(serverHit, expectedStatus == "allowed", "Request received by server");
 
-      frame.removeEventListener("abp:frameready", callback, false);
-
       start();
     };
-    frame.addEventListener("abp:frameready", callback, false, true);
+    let callback2 = function()
+    {
+      // The frame will report hits asynchronously so make the frame send us a
+      // message and only process the results after it is received.
+      frame.removeEventListener("abp:frameready", callback2, false);
+      frame.messageManager.addMessageListener("ready", callback);
+      frame.messageManager.loadFrameScript("data:text/javascript,sendAsyncMessage('ready')", false);
+    };
+    frame.addEventListener("abp:frameready", callback2, false, true);
     frame.setAttribute("src", "http://127.0.0.1:1234/test");
   }
 

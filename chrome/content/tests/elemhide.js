@@ -24,8 +24,9 @@
         response.bodyOutputStream.write(body, body.length);
       });
 
-      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "iframe");
+      frame = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "browser");
       frame.setAttribute("type", "content");
+      frame.setAttribute("disablehistory", "true");
       frame.style.visibility = "collapse";
       document.body.appendChild(frame);
     },
@@ -135,14 +136,30 @@
 
       frame.addEventListener("abp:frameready", function()
       {
-        Utils.runAsync(function()
+        let frameScript = `
+          // The "load" event doesn't mean XBL bindings are done, these will
+          // take longer to load (async messaging). Only check visibility after
+          // sending a message to parent and receiving response.
+          addMessageListener("pong", function()
+          {
+            let visibility = [
+              content.document.getElementById("test1").offsetHeight > 0 ? "visible" : "hidden",
+              content.document.getElementById("test2").offsetHeight > 0 ? "visible" : "hidden"
+            ];
+            sendAsyncMessage("visibility", visibility);
+          });
+          sendAsyncMessage("ping");
+        `;
+        frame.messageManager.addMessageListener("ping", () => frame.messageManager.sendAsyncMessage("pong"));
+        frame.messageManager.addMessageListener("visibility", (message) =>
         {
-          let doc = frame.contentDocument;
-          equal(doc.getElementById("test1").offsetHeight > 0 ? "visible" : "hidden", expected[0], "First element visible");
-          equal(doc.getElementById("test2").offsetHeight > 0 ? "visible" : "hidden", expected[1], "Second element visible");
+          let visibility = message.data;
+          equal(visibility[0], expected[0], "First element visible");
+          equal(visibility[1], expected[1], "Second element visible");
 
           start();
         });
+        frame.messageManager.loadFrameScript("data:text/javascript," + encodeURIComponent(frameScript), false);
       }, false, true);
       frame.setAttribute("src", "http://localhost:1234/test");
     };

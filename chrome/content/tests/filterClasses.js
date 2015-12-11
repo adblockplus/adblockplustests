@@ -58,6 +58,13 @@
           result.push("type=elemhide");
         else if (filter instanceof ElemHideException)
           result.push("type=elemhideexception");
+        else if (filter instanceof CSSPropertyFilter)
+        {
+          result.push("type=cssrule");
+          result.push("prefix=" + (filter.selectorPrefix || ""));
+          result.push("regexp=" + filter.regexpString);
+          result.push("suffix=" + (filter.selectorSuffix || ""));
+        }
 
         result.push("selectorDomain=" + (filter.selectorDomain || ""));
         result.push("selector=" + filter.selector);
@@ -84,7 +91,7 @@
         expected.push(prop + "=" + value);
     }
 
-    if (type == "whitelist" || type == "filterlist" || type == "elemhide" || type == "elemhideexception")
+    if (type == "whitelist" || type == "filterlist" || type == "elemhide" || type == "elemhideexception" || type == "cssrule")
     {
       addProperty("disabled", "false");
       addProperty("lastHit", "0");
@@ -106,10 +113,16 @@
     {
       addProperty("collapse", "null");
     }
-    if (type == "elemhide" || type == "elemhideexception")
+    if (type == "elemhide" || type == "elemhideexception" || type == "cssrule")
     {
       addProperty("selectorDomain", "");
       addProperty("domains", "");
+    }
+    if (type == "cssrule")
+    {
+      addProperty("regexp", "");
+      addProperty("prefix", "");
+      addProperty("suffix", "");
     }
   }
 
@@ -157,6 +170,7 @@
     equal(typeof ElemHideBase, "function", "typeof ElemHideBase");
     equal(typeof ElemHideFilter, "function", "typeof ElemHideFilter");
     equal(typeof ElemHideException, "function", "typeof ElemHideException");
+    equal(typeof CSSPropertyFilter, "function", "typeof CSSPropertyFilter");
   });
 
   test("Comments", function()
@@ -181,6 +195,19 @@
       let result = Filter.fromText("#*").reason;
       equal(result, Utils.getString("filter_elemhide_nocriteria"), "#*.reason");
     }
+
+    function compareCSSRule(domains)
+    {
+      let filterText = domains + "##[-abp-properties='abc']";
+      compareFilter(filterText, ["type=invalid", "text=" + filterText, "hasReason"]);
+      let reason = Filter.fromText(filterText).reason;
+      equal(reason, Utils.getString("filter_cssproperty_nodomain"), filterText + ".reason");
+    }
+    compareCSSRule("");
+    compareCSSRule("~foo.com");
+    compareCSSRule("~foo.com,~bar.com");
+    compareCSSRule("foo");
+    compareCSSRule("~foo.com,bar");
   });
 
   test("Filters with state", function()
@@ -274,5 +301,19 @@
     compareFilter("foo,bar#@ddd", ["type=elemhideexception", "text=foo,bar#@ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO"]);
     compareFilter("foo,~bar#@ddd", ["type=elemhideexception", "text=foo,~bar#@ddd", "selectorDomain=foo", "selector=ddd", "domains=FOO|~BAR"]);
     compareFilter("foo,~baz,bar#@ddd", ["type=elemhideexception", "text=foo,~baz,bar#@ddd", "selectorDomain=foo,bar", "selector=ddd", "domains=BAR|FOO|~BAZ"]);
+  });
+
+  test("CSS property filters", function()
+  {
+    // Check valid domain combinations
+    compareFilter("foo.com##[-abp-properties='abc']", ["type=cssrule", "text=foo.com##[-abp-properties='abc']", "selectorDomain=foo.com", "selector=[-abp-properties='abc']", "domains=FOO.COM", "regexp=abc"]);
+    compareFilter("foo.com,~bar.com##[-abp-properties='abc']", ["type=cssrule", "text=foo.com,~bar.com##[-abp-properties='abc']", "selectorDomain=foo.com", "selector=[-abp-properties='abc']", "domains=FOO.COM|~BAR.COM", "regexp=abc"]);
+    compareFilter("foo.com,~bar##[-abp-properties='abc']", ["type=cssrule", "text=foo.com,~bar##[-abp-properties='abc']", "selectorDomain=foo.com", "selector=[-abp-properties='abc']", "domains=FOO.COM|~BAR", "regexp=abc"]);
+    compareFilter("~foo.com,bar.com##[-abp-properties='abc']", ["type=cssrule", "text=~foo.com,bar.com##[-abp-properties='abc']", "selectorDomain=bar.com", "selector=[-abp-properties='abc']", "domains=BAR.COM|~FOO.COM", "regexp=abc"]);
+
+    compareFilter("##[-abp-properties='']", ["type=elemhide", "text=##[-abp-properties='']", "selector=[-abp-properties='']"]);
+    compareFilter("foo.com#@#[-abp-properties='abc']", ["type=elemhideexception", "text=foo.com#@#[-abp-properties='abc']", "selectorDomain=foo.com", "selector=[-abp-properties='abc']", "domains=FOO.COM"]);
+    compareFilter("foo.com##aaa [-abp-properties='abc'] bbb", ["type=cssrule", "text=foo.com##aaa [-abp-properties='abc'] bbb", "selectorDomain=foo.com", "selector=aaa [-abp-properties='abc'] bbb", "domains=FOO.COM", "prefix=aaa ", "regexp=abc", "suffix= bbb"]);
+    compareFilter("foo.com##[-abp-properties='|background-image: url(data:*)']", ["type=cssrule", "text=foo.com##[-abp-properties='|background-image: url(data:*)']", "selectorDomain=foo.com", "selector=[-abp-properties='|background-image: url(data:*)']", "domains=FOO.COM", "regexp=^background\\-image\\:\\ url\\(data\\:.*\\)"]);
   });
 })();

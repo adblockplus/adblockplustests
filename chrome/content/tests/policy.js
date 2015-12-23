@@ -236,6 +236,21 @@
       '</script>',
       "http://127.0.0.1:1234/test.js", "script", false, true
     ],
+    [
+      "Beacon",
+      '<script>' +
+        'try' +
+        '{' +
+          'navigator.sendBeacon("test.cgi");' +
+          'setTimeout(function() {' + dispatchReadyEvent + '}, 500)' +
+        '}' +
+        'catch (e)' +
+        '{' +
+          dispatchReadyEvent +
+        '}' +
+      '</script>',
+      "http://127.0.0.1:1234/test.cgi", "ping", false, true
+    ],
   ];
 
   if (window.navigator.mimeTypes["application/x-shockwave-flash"] && window.navigator.mimeTypes["application/x-shockwave-flash"].enabledPlugin)

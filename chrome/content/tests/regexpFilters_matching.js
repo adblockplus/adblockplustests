@@ -121,6 +121,10 @@
     testMatch("abc$font", "http://abc/adf", "FONT", null, false, null, true);
     testMatch("abc$~font", "http://abc/adf", "FONT", null, false, null, false);
 
+    testMatch("abc$ping", "http://abc/adf", "IMAGE", null, false, null, false);
+    testMatch("abc$ping", "http://abc/adf", "PING", null, false, null, true);
+    testMatch("abc$~ping", "http://abc/adf", "PING", null, false, null, false);
+
     testMatch("abc$image,script", "http://abc/adf", "IMAGE", null, false, null, true);
     testMatch("abc$~image", "http://abc/adf", "IMAGE", null, false, null, false);
     testMatch("abc$~script", "http://abc/adf", "IMAGE", null, false, null, true);

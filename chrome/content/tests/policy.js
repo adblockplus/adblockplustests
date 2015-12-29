@@ -95,6 +95,11 @@
       "http://127.0.0.1:1234/test.gif", "image", false, false
     ],
     [
+      "HTML image with srcset",
+      '<img srcset="test.gif">',
+      "http://127.0.0.1:1234/test.gif", "image", false, false
+    ],
+    [
       "Dynamically inserted image button",
       '<div id="insert"></div>' +
       '<script>' +
@@ -282,6 +287,15 @@
       "HTML object (Java)",
       '<object type="application/x-java-applet" data="test.class"></object>',
       "http://127.0.0.1:1234/test.class", "object", false, false
+    ]);
+  }
+
+  if ("fetch" in window)
+  {
+    tests.push([
+      "fetch() API",
+      '<script>fetch("test.xml").catch(function() {});</script>',
+      "http://127.0.0.1:1234/test.xml", "xmlhttprequest", false, false
     ]);
   }
 

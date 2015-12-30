@@ -294,8 +294,19 @@
   {
     tests.push([
       "fetch() API",
-      '<script>fetch("test.xml").catch(function() {});</script>',
-      "http://127.0.0.1:1234/test.xml", "xmlhttprequest", false, false
+      '<script>' +
+        'fetch("test.xml").then(' +
+          'function()' +
+          '{' +
+            dispatchReadyEvent +
+          '},' +
+          'function()' +
+          '{' +
+            dispatchReadyEvent +
+          '}' +
+        ');' +
+      '</script>',
+      "http://127.0.0.1:1234/test.xml", "xmlhttprequest", false, true
     ]);
   }
 
@@ -454,7 +465,7 @@
 
   for (let test = 0; test < tests.length; test++)
   {
-    let [name, body, expectedURL, expectedType, expectedDomain, expectedThirdParty] = tests[test];
+    let [name, , expectedURL] = tests[test];
     for (let stage = 1; stage in stageDescriptions; stage++)
     {
       let stageDescription = stageDescriptions[stage];

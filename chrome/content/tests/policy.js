@@ -100,6 +100,14 @@
       "http://127.0.0.1:1234/test.gif", "image", false, false
     ],
     [
+      "HTML picture",
+      '<picture>' +
+        '<source srcset="test.gif">' +
+        '<img>' +
+      '</picture>',
+      "http://127.0.0.1:1234/test.gif", "image", false, false
+    ],
+    [
       "Dynamically inserted image button",
       '<div id="insert"></div>' +
       '<script>' +

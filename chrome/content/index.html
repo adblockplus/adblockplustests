@@ -25,7 +25,7 @@
         else
         {
           let {getTests} = require("main");
-          result = ["tests/" + test + ".js" for (test of getTests())];
+          result = getTests().map(test => "tests/" + test + ".js");
         }
 
         result.sort();

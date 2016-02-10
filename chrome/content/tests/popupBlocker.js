@@ -1,11 +1,11 @@
 (function()
 {
+  let tabs = SDK.require("sdk/tabs");
   let server = null;
-  let wnd = null;
   let tab = null;
 
   module("Pop-up blocker", {
-    setup: function()
+    beforeEach: function()
     {
       prepareFilterComponents.call(this, true);
       preparePrefs.call(this);
@@ -13,22 +13,27 @@
       server = new nsHttpServer();
       server.start(1234);
 
+      // '/test' serves an html page with a single link
       server.registerPathHandler("/test", function(metadata, response)
       {
         response.setStatusLine("1.1", "200", "OK");
         response.setHeader("Content-Type", "text/html; charset=utf-8");
 
         let body =
-          '<body onload="document.dispatchEvent(new CustomEvent(\'abp:frameready\', {bubbles: true}));">' +
+          '<body>' +
             '<a id="link" href="/redirect" target="_blank">link</a>' +
           '</body>';
         response.bodyOutputStream.write(body, body.length);
       });
+
+      // redirects '/redirect' to '/target'
       server.registerPathHandler("/redirect", function(metadata, response)
       {
         response.setStatusLine("1.1", "302", "Moved Temporarily");
         response.setHeader("Location", "http://127.0.0.1:1234/target");
       });
+
+      // '/target' serves an html page with 'OK' message
       server.registerPathHandler("/target", function(metadata, response)
       {
         response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -37,16 +42,19 @@
         response.bodyOutputStream.write(body, body.length);
       });
 
-      wnd = UI.currentWindow;
-      tab = wnd.gBrowser.loadOneTab("http://127.0.0.1:1234/test", {inBackground: false});
-      wnd.gBrowser.getBrowserForTab(tab).addEventListener("abp:frameready", function(event)
-      {
-        start();
-      }, false, true);
+      tabs.open({
+        url: "http://127.0.0.1:1234/test",
+        inBackground: false,
+        onReady: function(aTab)
+        {
+          tab = aTab;
+          start();
+        }
+      });
 
       stop();
     },
-    teardown: function()
+    afterEach: function()
     {
       restoreFilterComponents.call(this);
       restorePrefs.call(this);
@@ -54,12 +62,11 @@
       stop();
       server.stop(function()
       {
-        wnd.gBrowser.removeTab(tab);
-
-        server = null;
-        frame = null;
-
-        start();
+        tab.close(function()
+        {
+          server = null;
+          start();
+        });
       });
     }
   });
@@ -81,42 +88,54 @@
 
     let successful = false;
 
-    function onTabOpen(event)
+    function onTabOpen(tab)
     {
+      tabs.off("ready", onTabOpen);
+
+      // link in '/test' was clicked
+      tab.on("close", onTabClose);
       window.clearTimeout(timeout);
-      wnd.gBrowser.tabContainer.removeEventListener("TabOpen", onTabOpen, false);
 
-      let tab = event.target;
-      let browser = wnd.gBrowser.getBrowserForTab(tab);
-      Utils.runAsync(function()
+      var worker = tab.attach({
+        contentScriptWhen: "ready",
+        contentScript: "self.port.emit('done', document.body.textContent);"
+      });
+
+      worker.port.once("done", function(bodyText)
       {
-        browser.contentWindow.addEventListener("load", function(event)
-        {
-          if (browser.contentDocument.body.textContent.indexOf("OK") >= 0)
-            successful = true;
+        if (bodyText.indexOf("OK") >= 0)
+          successful = true;
 
-          browser.contentWindow.close();
-        }, false);
+        // pop-up was not blocked so close it
+        tab.close();
       });
     }
+    tabs.on("ready", onTabOpen);
 
-    function onTabClose(event)
+    function onTabClose(tab)
     {
-      wnd.gBrowser.tabContainer.removeEventListener("TabClose", onTabClose, false);
+      tabs.off("ready", onTabOpen);
+      if (tab)
+        tab.off("close", onTabClose);
+
       ok(result == successful, "Opening tab with filter " + filter.text);
-      var keys = [];
-      for (let key in defaultMatcher.blacklist.keywordByFilter)
-        keys.push(key);
 
       FilterStorage.removeFilter(filter);
+
       start();
     }
 
-    wnd.gBrowser.tabContainer.addEventListener("TabOpen", onTabOpen, false);
-    wnd.gBrowser.tabContainer.addEventListener("TabClose", onTabClose, false);
-    let timeout = window.setTimeout(onTabClose, 1000);    // In case the tab isn't opened
+    // In case the tab isn't opened
+    let timeout = window.setTimeout(onTabClose, 1000, null);
 
-    wnd.gBrowser.getBrowserForTab(tab).contentDocument.getElementById("link").click();
+    // click the link in the '/test' tab opened before the test
+    var worker = tab.attach({
+      contentScriptWhen: "ready",
+      contentScript: "(" + function()
+      {
+        document.getElementById('link').click();
+      } + ")()"
+    });
   }
 
   for (let [filter, result] of tests)

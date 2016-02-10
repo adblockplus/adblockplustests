@@ -11,6 +11,9 @@ const MILLIS_IN_DAY = 24 * MILLIS_IN_HOUR;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
+const SDK = Cu.import("resource://gre/modules/commonjs/toolkit/require.js", {});
+SDK.require("sdk/tabs");
+
 function require(module)
 {
   let result = {};

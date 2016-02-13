@@ -10,4 +10,4 @@ optionsType=2
 default=http://adblockplus.org/en/source
 
 [compat]
-toolkit=38.0/46.0
+toolkit=38.0/48.0

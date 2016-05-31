@@ -33,7 +33,7 @@
 
   test("Subscriptions with state", function()
   {
-    compareSubscription("~fl~", ["url=~fl~", "title=" + Utils.getString("newGroup_title")]);
+    compareSubscription("~fl~", ["url=~fl~"]);
     compareSubscription("http://test/default", ["url=http://test/default", "title=http://test/default"]);
     compareSubscription("http://test/default_titled", ["url=http://test/default_titled", "title=test"], function(subscription)
     {

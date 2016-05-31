@@ -11,7 +11,7 @@
     {
       result.push("type=invalid");
       if (filter.reason)
-        result.push("hasReason");
+        result.push("reason=" + filter.reason);
     }
     else if (filter instanceof CommentFilter)
     {
@@ -182,26 +182,14 @@
 
   test("Invalid filters", function()
   {
-    compareFilter("/??/", ["type=invalid", "text=/??/", "hasReason"]);
-
-    compareFilter("#dd(asd)(ddd)", ["type=invalid", "text=#dd(asd)(ddd)", "hasReason"]);
-    {
-      let result = Filter.fromText("#dd(asd)(ddd)").reason;
-      equal(result, Utils.getString("filter_elemhide_duplicate_id"), "#dd(asd)(ddd).reason");
-    }
-
-    compareFilter("#*", ["type=invalid", "text=#*", "hasReason"]);
-    {
-      let result = Filter.fromText("#*").reason;
-      equal(result, Utils.getString("filter_elemhide_nocriteria"), "#*.reason");
-    }
+    compareFilter("/??/", ["type=invalid", "text=/??/", "reason=filter_invalid_regexp"]);
+    compareFilter("#dd(asd)(ddd)", ["type=invalid", "text=#dd(asd)(ddd)", "reason=filter_elemhide_duplicate_id"]);
+    compareFilter("#*", ["type=invalid", "text=#*", "reason=filter_elemhide_nocriteria"]);
 
     function compareCSSRule(domains)
     {
       let filterText = domains + "##[-abp-properties='abc']";
-      compareFilter(filterText, ["type=invalid", "text=" + filterText, "hasReason"]);
-      let reason = Filter.fromText(filterText).reason;
-      equal(reason, Utils.getString("filter_cssproperty_nodomain"), filterText + ".reason");
+      compareFilter(filterText, ["type=invalid", "text=" + filterText, "reason=filter_cssproperty_nodomain"]);
     }
     compareCSSRule("");
     compareCSSRule("~foo.com");
@@ -265,12 +253,12 @@
     compareFilter("@@bla$~script,~other,~elemhide", ["type=whitelist", "text=@@bla$~script,~other,~elemhide", "regexp=bla", "contentType=" + (defaultTypes & ~(t.SCRIPT | t.OTHER))]);
     compareFilter("@@bla$elemhide", ["type=whitelist", "text=@@bla$elemhide", "regexp=bla", "contentType=" + t.ELEMHIDE]);
 
-    compareFilter("@@bla$~script,~other,donottrack", ["type=invalid", "text=@@bla$~script,~other,donottrack", "hasReason"]);
-    compareFilter("@@bla$~script,~other,~donottrack", ["type=invalid", "text=@@bla$~script,~other,~donottrack", "hasReason"]);
-    compareFilter("@@bla$donottrack", ["type=invalid", "text=@@bla$donottrack", "hasReason"]);
-    compareFilter("@@bla$foobar", ["type=invalid", "text=@@bla$foobar", "hasReason"]);
-    compareFilter("@@bla$image,foobar", ["type=invalid", "text=@@bla$image,foobar", "hasReason"]);
-    compareFilter("@@bla$foobar,image", ["type=invalid", "text=@@bla$foobar,image", "hasReason"]);
+    compareFilter("@@bla$~script,~other,donottrack", ["type=invalid", "text=@@bla$~script,~other,donottrack", "reason=filter_unknown_option"]);
+    compareFilter("@@bla$~script,~other,~donottrack", ["type=invalid", "text=@@bla$~script,~other,~donottrack", "reason=filter_unknown_option"]);
+    compareFilter("@@bla$donottrack", ["type=invalid", "text=@@bla$donottrack", "reason=filter_unknown_option"]);
+    compareFilter("@@bla$foobar", ["type=invalid", "text=@@bla$foobar", "reason=filter_unknown_option"]);
+    compareFilter("@@bla$image,foobar", ["type=invalid", "text=@@bla$image,foobar", "reason=filter_unknown_option"]);
+    compareFilter("@@bla$foobar,image", ["type=invalid", "text=@@bla$foobar,image", "reason=filter_unknown_option"]);
   });
 
   test("Element hiding rules", function()

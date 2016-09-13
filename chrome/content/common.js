@@ -78,9 +78,9 @@ function prepareFilterComponents(keepListeners)
   };
 
   FilterStorage.subscriptions = [];
-  FilterStorage.knownSubscriptions = {__proto__: null};
-  Subscription.knownSubscriptions = {__proto__: null};
-  Filter.knownFilters = {__proto__: null};
+  FilterStorage.knownSubscriptions = Object.create(null);
+  Subscription.knownSubscriptions = Object.create(null);
+  Filter.knownFilters = Object.create(null);
   if (!keepListeners)
   {
     FilterNotifierGlobal.listeners = [];
@@ -124,7 +124,7 @@ function scheduleReinit()
 
 function preparePrefs()
 {
-  this._pbackup = {__proto__: null};
+  this._pbackup = Object.create(null);
   for (let pref in Prefs)
   {
     if (Prefs.__lookupSetter__(pref))
@@ -162,7 +162,7 @@ function setupVirtualTime(processTimers)
   {
     processTimers(function wrapTimer(timer)
     {
-      let wrapper = {__proto__: timer};
+      let wrapper = Object.create(timer);
       let callback = timer.callback;
       wrapper.handler = function() callback.notify(wrapper);
       wrapper.nextExecution = currentTime + timer.delay;

@@ -52,7 +52,7 @@
     function cleanup()
     {
       // Clear cache
-      Filter.knownFilters = {__proto__: null};
+      Filter.knownFilters = Object.create(null);
     }
 
     function finalize()

@@ -12,7 +12,7 @@
     subscription.serialize(result);
     equal(result.sort().join("\n"), expected.sort().join("\n"), url);
 
-    let map = {__proto__: null};
+    let map = Object.create(null);
     for (let line of result.slice(1))
     {
       if (/(.*?)=(.*)/.test(line))

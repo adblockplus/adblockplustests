@@ -118,64 +118,49 @@
 
   function runTest([filters, expected], stage)
   {
-    let listener = function(action)
+    for (let filterText of filters)
+      FilterStorage.addFilter(Filter.fromText(filterText));
+
+    if (stage == 2)
+      FilterStorage.addFilter(Filter.fromText("@@||localhost^$document"));
+    else if (stage == 3)
+      FilterStorage.addFilter(Filter.fromText("@@||localhost^$~document"));
+    else if (stage == 4)
+      FilterStorage.addFilter(Filter.fromText("@@||localhost^$elemhide"));
+
+    // Second and forth runs are whitelisted, nothing should be hidden
+    if (stage == 2 || stage == 4)
+      expected = ["visible", "visible"];
+
+    frame.addEventListener("abp:frameready", function()
     {
-      if (action != "elemhideupdate")
-        return;
-      FilterNotifier.removeListener(listener);
-
-      if (stage == 2)
-        defaultMatcher.add(Filter.fromText("@@||localhost^$document"));
-      else if (stage == 3)
-        defaultMatcher.add(Filter.fromText("@@||localhost^$~document"));
-      else if (stage == 4)
-        defaultMatcher.add(Filter.fromText("@@||localhost^$elemhide"));
-
-      if (stage == 2 || stage == 4)
-        expected = ["visible", "visible"];   // Second and forth runs are whitelisted, nothing should be hidden
-
-      frame.addEventListener("abp:frameready", function()
-      {
-        let frameScript = `
-          // The "load" event doesn't mean XBL bindings are done, these will
-          // take longer to load (async messaging). Only check visibility after
-          // sending a message to parent and receiving response.
-          addMessageListener("pong", function()
-          {
-            let visibility = [
-              content.document.getElementById("test1").offsetHeight > 0 ? "visible" : "hidden",
-              content.document.getElementById("test2").offsetHeight > 0 ? "visible" : "hidden"
-            ];
-            sendAsyncMessage("visibility", visibility);
-          });
-          sendAsyncMessage("ping");
-        `;
-        frame.messageManager.addMessageListener("ping", () => frame.messageManager.sendAsyncMessage("pong"));
-        frame.messageManager.addMessageListener("visibility", (message) =>
+      let frameScript = `
+        // The "load" event doesn't mean that our styles are applied - these
+        // are only applied after a message roundtrip to parent determining
+        // whether element hiding is enabled. Do the same roundtrip here before
+        // checking visibility to make sure timing is right.
+        addMessageListener("pong", function()
         {
-          let visibility = message.data;
-          equal(visibility[0], expected[0], "First element visible");
-          equal(visibility[1], expected[1], "Second element visible");
-
-          start();
+          let visibility = [
+            content.document.getElementById("test1").offsetHeight > 0 ? "visible" : "hidden",
+            content.document.getElementById("test2").offsetHeight > 0 ? "visible" : "hidden"
+          ];
+          sendAsyncMessage("visibility", visibility);
         });
-        frame.messageManager.loadFrameScript("data:text/javascript," + encodeURIComponent(frameScript), false);
-      }, false, true);
-      frame.setAttribute("src", "http://localhost:1234/test");
-    };
-    FilterNotifier.addListener(listener);
+        sendAsyncMessage("ping");
+      `;
+      frame.messageManager.addMessageListener("ping", () => frame.messageManager.sendAsyncMessage("pong"));
+      frame.messageManager.addMessageListener("visibility", (message) =>
+      {
+        let visibility = message.data;
+        equal(visibility[0], expected[0], "First element visible");
+        equal(visibility[1], expected[1], "Second element visible");
 
-    for (let filter_text of filters)
-    {
-      let filter = Filter.fromText(filter_text);
-      if (filter instanceof WhitelistFilter)
-        defaultMatcher.add(filter);
-      else
-        ElemHide.add(filter);
-    }
-
-    ElemHide.isDirty = true;
-    ElemHide.apply();
+        start();
+      });
+      frame.messageManager.loadFrameScript("data:text/javascript," + encodeURIComponent(frameScript), false);
+    }, false, true);
+    frame.setAttribute("src", "http://localhost:1234/test");
   }
 
   let stageDescriptions = {

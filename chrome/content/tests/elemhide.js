@@ -108,29 +108,23 @@
     [["localhost.,localhost###test1"], ["hidden", "visible"]],
     [["localhost.,foo.###test1"], ["visible", "visible"]],
 
-    [["##div#test1", "@@localhost$generichide"], ["visible", "visible"]],
-    [["##div#test1", "@@localhost$genericblock"], ["hidden", "visible"]],
-    [["localhost##div#test1", "@@localhost$generichide"], ["hidden", "visible"]],
-    [["~example.com##div#test1", "@@localhost$generichide"], ["visible", "visible"]],
-    [["~example.com##div#test1", "@@localhost$genericblock"], ["hidden", "visible"]],
-    [["~example.com,localhost##div#test1", "@@localhost$generichide"], ["hidden", "visible"]],
+    [["###test1", "localhost###test2", "@@||localhost^$document"], ["visible", "visible"]],
+    [["###test1", "localhost###test2", "@@||localhost^$~document"], ["hidden", "hidden"]],
+    [["###test1", "localhost###test2", "@@||localhost^$elemhide"], ["visible", "visible"]],
+    [["###test1", "localhost###test2", "@@||localhost^$~elemhide"], ["hidden", "hidden"]],
+
+    [["###test1", "@@||localhost^$generichide"], ["visible", "visible"]],
+    [["###test1", "@@||localhost^$genericblock"], ["hidden", "visible"]],
+    [["localhost###test1", "@@||localhost^$generichide"], ["hidden", "visible"]],
+    [["~example.com###test1", "@@||localhost^$generichide"], ["visible", "visible"]],
+    [["~example.com###test1", "@@||localhost^$genericblock"], ["hidden", "visible"]],
+    [["~example.com,localhost###test1", "@@||localhost^$generichide"], ["hidden", "visible"]],
   ];
 
-  function runTest([filters, expected], stage)
+  function runTest(filters, expected)
   {
     for (let filterText of filters)
       FilterStorage.addFilter(Filter.fromText(filterText));
-
-    if (stage == 2)
-      FilterStorage.addFilter(Filter.fromText("@@||localhost^$document"));
-    else if (stage == 3)
-      FilterStorage.addFilter(Filter.fromText("@@||localhost^$~document"));
-    else if (stage == 4)
-      FilterStorage.addFilter(Filter.fromText("@@||localhost^$elemhide"));
-
-    // Second and forth runs are whitelisted, nothing should be hidden
-    if (stage == 2 || stage == 4)
-      expected = ["visible", "visible"];
 
     frame.addEventListener("abp:frameready", function()
     {
@@ -163,17 +157,6 @@
     frame.setAttribute("src", "http://localhost:1234/test");
   }
 
-  let stageDescriptions = {
-    1: "running without exceptions",
-    2: "running with whitelisted document",
-    3: "running with exception not applying to documents",
-    4: "running with element hiding exception",
-  };
-
-  for (let test = 0; test < tests.length; test++)
-  {
-    let [filters, expected] = tests[test];
-    for (let stage = 1; stage in stageDescriptions; stage++)
-      asyncTest(filters.join(", ") + " (" + stageDescriptions[stage] + ")", runTest.bind(null, tests[test], stage));
-  }
+  for (let [filters, expected] of tests)
+    asyncTest(filters.join(", "), runTest.bind(null, filters, expected));
 })();

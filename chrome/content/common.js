@@ -65,6 +65,7 @@ function prepareFilterComponents(keepListeners)
     sourceFile: FilterStorage.sourceFile
   };
 
+  FilterStorage._loading = false;
   FilterStorage.subscriptions = [];
   FilterStorage.knownSubscriptions = Object.create(null);
   Subscription.knownSubscriptions = Object.create(null);

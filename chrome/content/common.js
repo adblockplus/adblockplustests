@@ -35,7 +35,7 @@ function getModuleGlobal(module)
 
 let {Filter, InvalidFilter, CommentFilter, ActiveFilter, RegExpFilter,
      BlockingFilter, WhitelistFilter, ElemHideBase, ElemHideFilter,
-     ElemHideException, CSSPropertyFilter} = require("filterClasses");
+     ElemHideException, ElemHideEmulationFilter} = require("filterClasses");
 let {Subscription, SpecialSubscription, RegularSubscription,
      ExternalSubscription, DownloadableSubscription} = require("subscriptionClasses");
 let {defaultMatcher, Matcher, CombinedMatcher} = require("matcher");
@@ -43,7 +43,7 @@ let {FilterListener} = require("filterListener");
 let {FilterNotifier} = require("filterNotifier");
 let {FilterStorage} = require("filterStorage");
 let {ElemHide} = require("elemHide");
-let {CSSRules} = require("cssRules");
+let {ElemHideEmulation} = require("elemHideEmulation");
 let {IO} = require("io");
 let {Notification} = require("notification");
 let {Prefs} = require("prefs");
@@ -77,7 +77,7 @@ function prepareFilterComponents(keepListeners)
 
   defaultMatcher.clear();
   ElemHide.clear();
-  CSSRules.clear();
+  ElemHideEmulation.clear();
 }
 
 function restoreFilterComponents()
